@@ -17,12 +17,35 @@ const specials = [
 
 const storageKey = "gacha-pomodoro-week-plan";
 const initialTimerMinutes = 25;
+const celebrationDuration = 4200;
 
-function makeTask(name, category) {
+const ballLayouts = [
+  { left: 9, top: 47, size: 48, rotate: -14 },
+  { left: 25, top: 56, size: 40, rotate: 18 },
+  { left: 43, top: 49, size: 52, rotate: -7 },
+  { left: 63, top: 57, size: 38, rotate: 22 },
+  { left: 74, top: 42, size: 46, rotate: -21 },
+  { left: 15, top: 31, size: 36, rotate: 11 },
+  { left: 36, top: 29, size: 44, rotate: -19 },
+  { left: 55, top: 34, size: 35, rotate: 16 },
+  { left: 70, top: 23, size: 42, rotate: -8 },
+  { left: 23, top: 14, size: 39, rotate: 20 },
+  { left: 48, top: 12, size: 47, rotate: -13 },
+  { left: 8, top: 61, size: 34, rotate: 25 },
+  { left: 58, top: 68, size: 45, rotate: -17 },
+  { left: 78, top: 66, size: 36, rotate: 9 },
+  { left: 34, top: 70, size: 37, rotate: -24 },
+  { left: 5, top: 19, size: 43, rotate: 7 },
+  { left: 82, top: 12, size: 33, rotate: -16 },
+  { left: 49, top: 58, size: 39, rotate: 13 },
+];
+
+function makeTask(name, category, dailyExclusive = false) {
   return {
     id: crypto.randomUUID(),
     name,
     category,
+    dailyExclusive,
     createdAt: new Date().toISOString(),
   };
 }
@@ -38,6 +61,7 @@ function seedState() {
       makeTask("写一个小点子", "creative"),
     ],
     completed: [],
+    dailyDraws: [],
     specialEnabled: true,
     current: null,
   };
@@ -46,7 +70,7 @@ function seedState() {
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(storageKey));
-    return parsed ? { ...seedState(), ...parsed } : seedState();
+    return normalizeState(parsed);
   } catch {
     return seedState();
   }
@@ -58,6 +82,26 @@ function categoryById(id) {
 
 function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function todayKey() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+function taskKey(name) {
+  return name.trim().toLowerCase();
+}
+
+function normalizeState(parsed) {
+  const seeded = seedState();
+  const state = parsed ? { ...seeded, ...parsed } : seeded;
+  return {
+    ...state,
+    dailyDraws: Array.isArray(state.dailyDraws) ? state.dailyDraws : [],
+    tasks: Array.isArray(state.tasks)
+      ? state.tasks.map((task) => ({ dailyExclusive: false, ...task }))
+      : seeded.tasks,
+  };
 }
 
 function formatMinutes(minutes) {
@@ -73,8 +117,10 @@ function buildPrizePieces() {
     { x: 22, y: 26, delay: 0.1 },
     { x: 75, y: 24, delay: 0.22 },
     { x: 50, y: 12, delay: 0.34 },
+    { x: 14, y: 62, delay: 0.48 },
+    { x: 84, y: 60, delay: 0.62 },
   ];
-  const confetti = Array.from({ length: 30 }, (_, index) => ({
+  const confetti = Array.from({ length: 54 }, (_, index) => ({
     x: 5 + ((index * 17) % 90),
     delay: 0.08 + ((index % 9) * 0.055),
     drift: (index % 2 === 0 ? 1 : -1) * (18 + ((index * 11) % 48)),
@@ -88,12 +134,23 @@ function buildPrizePieces() {
   };
 }
 
+function chooseTask(tasks, dailyDraws) {
+  const date = todayKey();
+  const todaysKeys = new Set((dailyDraws || []).filter((item) => item.date === date).map((item) => item.key));
+  const allowed = tasks.filter((task) => !task.dailyExclusive || !todaysKeys.has(taskKey(task.name)));
+  const pool = allowed.length ? allowed : tasks.filter((task) => !task.dailyExclusive);
+  if (!pool.length) return null;
+  const fresh = pool.filter((task) => !todaysKeys.has(taskKey(task.name)));
+  return pick(fresh.length ? fresh : pool);
+}
+
 export default function App() {
   const [view, setView] = useState("machine");
   const [state, setState] = useState(loadState);
   const [taskName, setTaskName] = useState("");
   const [taskCategory, setTaskCategory] = useState(categories[0].id);
   const [taskCount, setTaskCount] = useState(1);
+  const [taskDailyExclusive, setTaskDailyExclusive] = useState(false);
   const [timerMinutes, setTimerMinutes] = useState(initialTimerMinutes);
   const [timerRemaining, setTimerRemaining] = useState(initialTimerMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -101,9 +158,12 @@ export default function App() {
   const [drawInProgress, setDrawInProgress] = useState(false);
   const [drawPhase, setDrawPhase] = useState("idle");
   const [prizePieces, setPrizePieces] = useState({ fireworks: [], confetti: [] });
+  const [finishPieces, setFinishPieces] = useState({ fireworks: [], confetti: [] });
+  const [showFinishCelebration, setShowFinishCelebration] = useState(false);
   const [pendingPrize, setPendingPrize] = useState(null);
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
@@ -115,7 +175,7 @@ export default function App() {
     intervalRef.current = window.setInterval(() => {
       setTimerRemaining((remaining) => {
         if (remaining <= 1) {
-          stopTimer();
+          finishTimer();
           return 0;
         }
         return remaining - 1;
@@ -157,19 +217,71 @@ export default function App() {
     }
   }
 
+  function getAudioContext() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+    if (!audioRef.current) audioRef.current = new AudioContext();
+    if (audioRef.current.state === "suspended") audioRef.current.resume();
+    return audioRef.current;
+  }
+
+  function playTone(frequency, start, duration, type = "sine", volume = 0.12) {
+    const context = getAudioContext();
+    if (!context) return;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, context.currentTime + start);
+    gain.gain.setValueAtTime(0.001, context.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(volume, context.currentTime + start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + start + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(context.currentTime + start);
+    oscillator.stop(context.currentTime + start + duration + 0.03);
+  }
+
+  function playSound(kind) {
+    if (kind === "roll") {
+      [180, 210, 165, 240].forEach((frequency, index) => playTone(frequency, index * 0.08, 0.09, "square", 0.06));
+    }
+    if (kind === "open") {
+      [523, 659, 784].forEach((frequency, index) => playTone(frequency, index * 0.07, 0.18, "triangle", 0.1));
+    }
+    if (kind === "finish") {
+      [392, 523, 659, 784, 1046].forEach((frequency, index) => playTone(frequency, index * 0.1, 0.28, "triangle", 0.11));
+    }
+  }
+
+  function finishTimer() {
+    stopTimer();
+    setTimerRemaining(0);
+    setFinishPieces(buildPrizePieces());
+    setShowFinishCelebration(true);
+    playSound("finish");
+    window.setTimeout(() => {
+      setShowFinishCelebration(false);
+      setFinishPieces({ fireworks: [], confetti: [] });
+    }, celebrationDuration);
+  }
+
   function startTimer() {
     if (!state.current || state.current.kind !== "task") return;
+    getAudioContext();
     if (!timerRunning) setTimerRunning(true);
   }
 
   function drawTask() {
     if (drawInProgress) return;
     stopTimer();
+    playSound("roll");
     const getsSpecial = state.specialEnabled && Math.random() < 0.08;
     const selectedPrize = getsSpecial
       ? { kind: "special", ...pick(specials) }
       : state.tasks.length
-        ? { kind: "task", ...pick(state.tasks) }
+        ? (() => {
+            const selectedTask = chooseTask(state.tasks, state.dailyDraws);
+            return selectedTask ? { kind: "task", ...selectedTask } : null;
+          })()
         : null;
 
     setDrawInProgress(true);
@@ -193,14 +305,25 @@ export default function App() {
     if (drawPhase !== "prize") return;
     setPrizePieces(buildPrizePieces());
     setDrawPhase("celebrating");
+    playSound("open");
 
     window.setTimeout(() => {
-      setState((currentState) => ({ ...currentState, current: pendingPrize }));
+      setState((currentState) => ({
+        ...currentState,
+        current: pendingPrize,
+        dailyDraws:
+          pendingPrize?.kind === "task"
+            ? [
+                ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
+                { date: todayKey(), key: taskKey(pendingPrize.name), taskId: pendingPrize.id },
+              ]
+            : currentState.dailyDraws,
+      }));
       setPrizePieces({ fireworks: [], confetti: [] });
       setPendingPrize(null);
       setDrawPhase("idle");
       setDrawInProgress(false);
-    }, 2000);
+    }, celebrationDuration);
   }
 
   function addTasks(event) {
@@ -213,11 +336,12 @@ export default function App() {
       ...currentState,
       tasks: [
         ...currentState.tasks,
-        ...Array.from({ length: count }, () => makeTask(cleanName, taskCategory)),
+        ...Array.from({ length: count }, () => makeTask(cleanName, taskCategory, taskDailyExclusive)),
       ],
     }));
     setTaskName("");
     setTaskCount(1);
+    setTaskDailyExclusive(false);
   }
 
   function completeCurrentTask() {
@@ -251,6 +375,7 @@ export default function App() {
     setState((currentState) => ({
       tasks: [],
       completed: [],
+      dailyDraws: [],
       specialEnabled: currentState.specialEnabled,
       current: null,
     }));
@@ -335,18 +460,17 @@ export default function App() {
                     <div className="ball-cloud">
                       {state.tasks.slice(0, 18).map((task, index) => {
                         const category = categoryById(task.category);
-                        const left = 8 + ((index * 29) % 72);
-                        const top = 10 + ((index * 37) % 62);
-                        const size = 34 + ((index * 7) % 18);
+                        const layout = ballLayouts[index % ballLayouts.length];
                         return (
                           <span
                             key={task.id}
                             className="mini-ball"
                             style={{
-                              left: `${left}%`,
-                              top: `${top}%`,
-                              width: `${size}px`,
-                              height: `${size}px`,
+                              left: `${layout.left}%`,
+                              top: `${layout.top}%`,
+                              width: `${layout.size}px`,
+                              height: `${layout.size}px`,
+                              "--base-rotate": `${layout.rotate}deg`,
                               background: category.color,
                               "--i": index,
                             }}
@@ -402,6 +526,8 @@ export default function App() {
           onOpenPrizeBall={openPrizeBall}
         />
 
+        <FinishCelebration show={showFinishCelebration} pieces={finishPieces} />
+
         <section id="add" className={`view ${view === "add" ? "active" : ""}`} aria-labelledby="addTitle">
           <div className="section-head">
             <p className="eyebrow">ADD BALLS</p>
@@ -453,6 +579,15 @@ export default function App() {
                 }
               />
               <span>开启特殊球</span>
+            </label>
+
+            <label className="toggle-row full">
+              <input
+                type="checkbox"
+                checked={taskDailyExclusive}
+                onChange={(event) => setTaskDailyExclusive(event.target.checked)}
+              />
+              <span>同名任务当天只抽一次</span>
             </label>
 
             <button className="primary-action full" type="submit">
@@ -539,7 +674,7 @@ function CurrentPanel({
             <span>{timerText}</span>
           </div>
           <div className="timer-controls">
-            <button type="button" onClick={timerRunning ? stopTimer : startTimer}>
+            <button className="timer-start-button" type="button" onClick={timerRunning ? stopTimer : startTimer}>
               {timerRunning ? "Ⅱ" : "▶"}
             </button>
             <button type="button" onClick={resetTimer}>
@@ -634,6 +769,43 @@ function PrizeModal({ phase, prizePieces, pendingPrize, onOpenPrizeBall }) {
   );
 }
 
+function FinishCelebration({ show, pieces }) {
+  if (!show) return null;
+
+  return (
+    <div className="finish-celebration" aria-live="polite" role="status">
+      <div className="modal-prize-burst" aria-hidden="true">
+        {pieces.fireworks.map((item, index) => (
+          <span
+            key={`finish-firework-${index}`}
+            className="firework"
+            style={{
+              "--x": `${item.x}%`,
+              "--y": `${item.y}%`,
+              "--delay": `${item.delay}s`,
+              "--c": item.color,
+            }}
+          />
+        ))}
+        {pieces.confetti.map((item, index) => (
+          <span
+            key={`finish-confetti-${index}`}
+            className="confetti"
+            style={{
+              "--x": `${item.x}%`,
+              "--delay": `${item.delay}s`,
+              "--drift": `${item.drift * 1.35}px`,
+              "--r": `${item.rotate}deg`,
+              "--c": item.color,
+            }}
+          />
+        ))}
+      </div>
+      <strong>Amazing</strong>
+    </div>
+  );
+}
+
 function TaskQueue({ tasks }) {
   if (!tasks.length) {
     return (
@@ -655,6 +827,7 @@ function TaskQueue({ tasks }) {
             <div>
               <strong>{task.name}</strong>
               <div className="task-meta">{category.name}</div>
+              {task.dailyExclusive && <div className="task-meta">同名当天只抽一次</div>}
             </div>
             <span className="swatch" style={{ background: category.color }} />
           </div>
