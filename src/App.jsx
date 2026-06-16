@@ -326,6 +326,24 @@ export default function App() {
     }, celebrationDuration);
   }
 
+  function chooseTaskDirectly(task) {
+    stopTimer();
+    resetTimer(timerMinutes);
+    setDrawInProgress(false);
+    setDrawPhase("idle");
+    setPendingPrize(null);
+    setPrizePieces({ fireworks: [], confetti: [] });
+    setState((currentState) => ({
+      ...currentState,
+      current: { kind: "task", ...task },
+      dailyDraws: [
+        ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
+        { date: todayKey(), key: taskKey(task.name), taskId: task.id },
+      ],
+    }));
+    setView("machine");
+  }
+
   function addTasks(event) {
     event.preventDefault();
     const cleanName = taskName.trim();
@@ -602,7 +620,7 @@ export default function App() {
                 清理完成记录
               </button>
             </div>
-            <TaskQueue tasks={state.tasks} />
+            <TaskQueue tasks={state.tasks} onChooseTask={chooseTaskDirectly} />
           </section>
         </section>
 
@@ -806,7 +824,7 @@ function FinishCelebration({ show, pieces }) {
   );
 }
 
-function TaskQueue({ tasks }) {
+function TaskQueue({ tasks, onChooseTask }) {
   if (!tasks.length) {
     return (
       <div className="task-queue">
@@ -829,7 +847,12 @@ function TaskQueue({ tasks }) {
               <div className="task-meta">{category.name}</div>
               {task.dailyExclusive && <div className="task-meta">同名当天只抽一次</div>}
             </div>
-            <span className="swatch" style={{ background: category.color }} />
+            <div className="task-row-actions">
+              <span className="swatch" style={{ background: category.color }} />
+              <button className="choose-task-action" type="button" onClick={() => onChooseTask(task)}>
+                选做
+              </button>
+            </div>
           </div>
         );
       })}

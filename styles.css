@@ -760,6 +760,28 @@ main {
   font-size: 14px;
 }
 
+.task-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.choose-task-action {
+  min-height: 36px;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #202124;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.choose-task-action:hover {
+  background: #202124;
+  color: white;
+}
+
 .progress-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1033,5 +1055,13 @@ main {
 
   .timer-controls {
     grid-template-columns: 68px 48px 1fr;
+  }
+
+  .task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-row-actions {
+    justify-content: space-between;
   }
 }
