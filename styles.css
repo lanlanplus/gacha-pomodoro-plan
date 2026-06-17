@@ -38,12 +38,14 @@ select {
 
 button {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 .sidebar {
@@ -98,8 +100,87 @@ button {
 }
 
 .nav-tabs {
+  --active-index: 0;
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 15;
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: min(680px, calc(100vw - 32px));
+  min-height: 78px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0.42)),
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.92), transparent 28%),
+    radial-gradient(circle at 88% 72%, rgba(31, 156, 149, 0.18), transparent 34%),
+    rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 22px 58px rgba(45, 40, 31, 0.2),
+    0 6px 18px rgba(255, 255, 255, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    inset 0 -1px 0 rgba(32, 33, 36, 0.08);
+  backdrop-filter: blur(24px) saturate(1.6);
+  transform: translateX(-50%);
+}
+
+.nav-tabs:has(.nav-tab[data-view="add"].active) {
+  --active-index: 1;
+}
+
+.nav-tabs:has(.nav-tab[data-view="progress"].active) {
+  --active-index: 2;
+}
+
+.nav-tabs:has(.nav-tab[data-view="summary"].active) {
+  --active-index: 3;
+}
+
+.nav-tabs::before,
+.nav-tabs::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.nav-tabs::before {
+  top: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 0;
+  width: calc((100% - 34px) / 4);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 32% 20%, rgba(255, 255, 255, 0.98), transparent 34%),
+    radial-gradient(circle at 78% 84%, rgba(239, 91, 83, 0.18), transparent 36%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28));
+  box-shadow:
+    0 12px 30px rgba(45, 40, 31, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -10px 20px rgba(255, 255, 255, 0.2);
+  transform: translateX(calc(var(--active-index) * (100% + 6px))) scale(1);
+  transition:
+    transform 0.56s cubic-bezier(0.18, 1.24, 0.24, 1),
+    width 0.56s cubic-bezier(0.18, 1.24, 0.24, 1),
+    box-shadow 0.34s ease;
+}
+
+.nav-tabs::after {
+  inset: 1px;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+    linear-gradient(110deg, transparent 8%, rgba(255, 255, 255, 0.68) 22%, transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 48%);
+  mix-blend-mode: screen;
+  opacity: 0.74;
+  transform: translateX(-44%);
+  animation: nav-glass-sheen 7s ease-in-out infinite;
 }
 
 .nav-tab,
@@ -111,19 +192,70 @@ button {
 }
 
 .nav-tab {
-  display: flex;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: 24px auto;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 12px;
-  border-radius: 8px;
-  text-align: left;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 8px 10px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(32, 33, 36, 0.56);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+  transition:
+    color 0.28s ease,
+    transform 0.28s cubic-bezier(0.2, 1.1, 0.2, 1),
+    opacity 0.28s ease;
+  user-select: none;
+}
+
+.nav-tab:focus {
+  outline: none;
+}
+
+.nav-tab:focus-visible {
+  outline: 2px solid rgba(77, 127, 214, 0.5);
+  outline-offset: 3px;
+}
+
+.nav-tab:hover {
+  color: rgba(32, 33, 36, 0.78);
+  transform: translateY(-1px);
+}
+
+.nav-tab:active {
+  transform: translateY(1px) scale(0.96);
+}
+
+.nav-tab span {
+  min-width: 0;
+}
+
+.nav-tab span:first-child {
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.5));
 }
 
 .nav-tab.active {
-  border-color: rgba(239, 91, 83, 0.48);
-  background: #fff;
-  box-shadow: 0 10px 26px rgba(239, 91, 83, 0.12);
+  border-color: transparent;
+  background: transparent;
+  color: #202124;
+  box-shadow: none;
+  animation: nav-tab-pop 0.42s cubic-bezier(0.2, 1.24, 0.28, 1);
 }
 
 .week-meter {
@@ -972,6 +1104,34 @@ main {
   }
 }
 
+@keyframes nav-glass-sheen {
+  0%,
+  28% {
+    opacity: 0.46;
+    transform: translateX(-54%);
+  }
+  48% {
+    opacity: 0.86;
+  }
+  68%,
+  100% {
+    opacity: 0.5;
+    transform: translateX(48%);
+  }
+}
+
+@keyframes nav-tab-pop {
+  0% {
+    transform: translateY(2px) scale(0.92);
+  }
+  62% {
+    transform: translateY(-1px) scale(1.05);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gacha-machine.shaking,
   .gacha-machine.rolling .dial,
@@ -982,10 +1142,17 @@ main {
   .firework::before,
   .firework::after,
   .confetti,
+  .nav-tabs::after,
+  .nav-tab.active,
   .task-state:not(.hidden),
   .special-state:not(.hidden) {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
+  }
+
+  .nav-tabs::before,
+  .nav-tab {
+    transition-duration: 0.01ms;
   }
 }
 
@@ -1004,13 +1171,8 @@ main {
     border-bottom: 1px solid var(--line);
   }
 
-  .nav-tabs {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
   .nav-tab {
-    justify-content: center;
-    padding: 0 8px;
+    padding: 8px 6px;
   }
 
   .week-meter {
@@ -1018,7 +1180,7 @@ main {
   }
 
   main {
-    padding: 16px;
+    padding: 16px 16px 28px;
   }
 
   .machine-layout,
@@ -1037,10 +1199,12 @@ main {
   }
 
   .nav-tab {
-    flex-direction: column;
-    gap: 2px;
-    font-size: 13px;
-    min-height: 40px;
+    min-height: 58px;
+    font-size: 12px;
+  }
+
+  .nav-tab span:first-child {
+    font-size: 20px;
   }
 
   .stage-copy h2,

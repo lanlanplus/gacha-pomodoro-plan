@@ -145,6 +145,12 @@ function chooseTask(tasks, dailyDraws) {
 }
 
 export default function App() {
+  const navItems = [
+    ["machine", "◎", "摇蛋机"],
+    ["add", "＋", "添加任务"],
+    ["progress", "▦", "进度"],
+    ["summary", "◷", "周总结"],
+  ];
   const [view, setView] = useState("machine");
   const [state, setState] = useState(loadState);
   const [taskName, setTaskName] = useState("");
@@ -427,25 +433,6 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="nav-tabs" aria-label="页面">
-          {[
-            ["machine", "◎", "摇蛋机"],
-            ["add", "＋", "添加任务"],
-            ["progress", "▦", "进度"],
-            ["summary", "◷", "周总结"],
-          ].map(([id, icon, label]) => (
-            <button
-              key={id}
-              data-view={id}
-              className={`nav-tab ${view === id ? "active" : ""}`}
-              type="button"
-              onClick={() => setView(id)}
-            >
-              <span aria-hidden="true">{icon}</span> {label}
-            </button>
-          ))}
-        </nav>
-
         <div className="week-meter">
           <div className="meter-label">
             <span>本周完成</span>
@@ -654,6 +641,21 @@ export default function App() {
           <SummaryList completed={state.completed} />
         </section>
       </main>
+
+      <nav className="nav-tabs" aria-label="页面">
+        {navItems.map(([id, icon, label]) => (
+          <button
+            key={id}
+            data-view={id}
+            className={`nav-tab ${view === id ? "active" : ""}`}
+            type="button"
+            onClick={() => setView(id)}
+          >
+            <span aria-hidden="true">{icon}</span>
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
