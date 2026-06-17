@@ -153,6 +153,7 @@ export default function App() {
   ];
   const [view, setView] = useState("machine");
   const [state, setState] = useState(loadState);
+  const [machineMode, setMachineMode] = useState(() => (state.current ? "current" : "draw"));
   const [taskName, setTaskName] = useState("");
   const [taskCategory, setTaskCategory] = useState(categories[0].id);
   const [taskCount, setTaskCount] = useState(1);
@@ -279,6 +280,7 @@ export default function App() {
   function drawTask() {
     if (drawInProgress) return;
     stopTimer();
+    setMachineMode("draw");
     playSound("roll");
     const getsSpecial = state.specialEnabled && Math.random() < 0.08;
     const selectedPrize = getsSpecial
@@ -325,6 +327,7 @@ export default function App() {
               ]
             : currentState.dailyDraws,
       }));
+      if (pendingPrize) setMachineMode("current");
       setPrizePieces({ fireworks: [], confetti: [] });
       setPendingPrize(null);
       setDrawPhase("idle");
@@ -347,6 +350,7 @@ export default function App() {
         { date: todayKey(), key: taskKey(task.name), taskId: task.id },
       ],
     }));
+    setMachineMode("current");
     setView("machine");
   }
 
@@ -390,6 +394,7 @@ export default function App() {
       ],
       current: null,
     }));
+    setMachineMode("draw");
     resetTimer(timerMinutes);
   }
 
@@ -403,11 +408,13 @@ export default function App() {
       specialEnabled: currentState.specialEnabled,
       current: null,
     }));
+    setMachineMode("draw");
     resetTimer(timerMinutes);
   }
 
   function claimSpecial() {
     setState((currentState) => ({ ...currentState, current: null }));
+    setMachineMode("draw");
   }
 
   function clearCompleted() {
@@ -419,6 +426,12 @@ export default function App() {
   )
     .toString()
     .padStart(2, "0")}`;
+  const showCurrentPanel = machineMode === "current" && state.current;
+
+  function returnToMachine() {
+    stopTimer();
+    setMachineMode("draw");
+  }
 
   return (
     <div className="app-shell">
@@ -449,78 +462,83 @@ export default function App() {
 
       <main>
         <section id="machine" className={`view ${view === "machine" ? "active" : ""}`} aria-labelledby="machineTitle">
-          <div className="machine-layout">
-            <section className="machine-stage" aria-labelledby="machineTitle">
-              <div className="stage-copy">
-                <p className="eyebrow">GACHA POMODORO</p>
-                <h2 id="machineTitle">摇出下一颗任务球</h2>
-              </div>
-
-              <div className="gacha-wrap">
-                <div
-                  className={`gacha-machine ${drawPhase === "rolling" ? "shaking rolling" : ""}`}
-                  aria-hidden="true"
-                >
-                  <div className="gacha-top">
-                    <div className="ball-cloud">
-                      {state.tasks.slice(0, 18).map((task, index) => {
-                        const category = categoryById(task.category);
-                        const layout = ballLayouts[index % ballLayouts.length];
-                        return (
-                          <span
-                            key={task.id}
-                            className="mini-ball"
-                            style={{
-                              left: `${layout.left}%`,
-                              top: `${layout.top}%`,
-                              width: `${layout.size}px`,
-                              height: `${layout.size}px`,
-                              "--base-rotate": `${layout.rotate}deg`,
-                              background: category.color,
-                              "--i": index,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="glass-shine" />
-                  </div>
-                  <div className="gacha-neck" />
-                  <div className="gacha-body">
-                    <div className="dial">
-                      <div className="dial-dot" />
-                    </div>
-                    <div className="slot" />
-                  </div>
-                  <div className="gacha-base" />
+          <div className={`machine-layout ${showCurrentPanel ? "is-current" : "is-draw"}`}>
+            {!showCurrentPanel && (
+              <section className="machine-stage" aria-labelledby="machineTitle">
+                <div className="stage-copy">
+                  <p className="eyebrow">GACHA POMODORO</p>
+                  <h2 id="machineTitle">摇出下一颗任务球</h2>
                 </div>
-              </div>
 
-              <div className="machine-actions">
-                <button className="primary-action" type="button" onClick={drawTask} disabled={drawInProgress}>
-                  {drawPhase === "rolling" ? "摇动中..." : drawInProgress ? "开奖中..." : "摇一个！"}
-                </button>
-                <button className="ghost-action" type="button" onClick={resetWeek}>
-                  开启新一周
-                </button>
-              </div>
-            </section>
+                <div className="gacha-wrap">
+                  <div
+                    className={`gacha-machine ${drawPhase === "rolling" ? "shaking rolling" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <div className="gacha-top">
+                      <div className="ball-cloud">
+                        {state.tasks.slice(0, 18).map((task, index) => {
+                          const category = categoryById(task.category);
+                          const layout = ballLayouts[index % ballLayouts.length];
+                          return (
+                            <span
+                              key={task.id}
+                              className="mini-ball"
+                              style={{
+                                left: `${layout.left}%`,
+                                top: `${layout.top}%`,
+                                width: `${layout.size}px`,
+                                height: `${layout.size}px`,
+                                "--base-rotate": `${layout.rotate}deg`,
+                                background: category.color,
+                                "--i": index,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="glass-shine" />
+                    </div>
+                    <div className="gacha-neck" />
+                    <div className="gacha-body">
+                      <div className="dial">
+                        <div className="dial-dot" />
+                      </div>
+                      <div className="slot" />
+                    </div>
+                    <div className="gacha-base" />
+                  </div>
+                </div>
 
-            <CurrentPanel
-              current={state.current}
-              timerText={timerText}
-              timerRunning={timerRunning}
-              timerMinutes={timerMinutes}
-              setTimerMinutes={(value) => {
-                setTimerMinutes(value);
-                resetTimer(value);
-              }}
-              startTimer={startTimer}
-              stopTimer={stopTimer}
-              resetTimer={() => resetTimer(timerMinutes)}
-              completeCurrentTask={completeCurrentTask}
-              claimSpecial={claimSpecial}
-            />
+                <div className="machine-actions">
+                  <button className="primary-action" type="button" onClick={drawTask} disabled={drawInProgress}>
+                    {drawPhase === "rolling" ? "摇动中..." : drawInProgress ? "开奖中..." : "摇一个！"}
+                  </button>
+                  <button className="ghost-action" type="button" onClick={resetWeek}>
+                    开启新一周
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {showCurrentPanel && (
+              <CurrentPanel
+                current={state.current}
+                timerText={timerText}
+                timerRunning={timerRunning}
+                timerMinutes={timerMinutes}
+                setTimerMinutes={(value) => {
+                  setTimerMinutes(value);
+                  resetTimer(value);
+                }}
+                startTimer={startTimer}
+                stopTimer={stopTimer}
+                resetTimer={() => resetTimer(timerMinutes)}
+                completeCurrentTask={completeCurrentTask}
+                claimSpecial={claimSpecial}
+                onBack={returnToMachine}
+              />
+            )}
           </div>
         </section>
 
@@ -671,9 +689,14 @@ function CurrentPanel({
   resetTimer,
   completeCurrentTask,
   claimSpecial,
+  onBack,
 }) {
   return (
     <section className="current-panel" aria-label="当前任务">
+      <button className="back-action" type="button" onClick={onBack}>
+        ← 返回
+      </button>
+
       {!current && (
         <div className="empty-state">
           <strong>任务球等待被摇出</strong>

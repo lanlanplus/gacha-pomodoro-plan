@@ -303,9 +303,14 @@ main {
 
 .machine-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 1.25fr) minmax(300px, 0.75fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 56px);
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.machine-layout.is-current {
+  width: min(620px, 100%);
 }
 
 .machine-stage,
@@ -673,10 +678,26 @@ main {
   font-size: 14px;
 }
 
+.back-action {
+  justify-self: start;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--ink);
+  padding: 0 14px;
+  font-weight: 800;
+}
+
 .current-panel {
   display: grid;
-  align-content: center;
+  align-content: start;
+  gap: 22px;
   padding: 24px;
+}
+
+.machine-layout.is-current .current-panel {
+  min-height: calc(100vh - 56px);
 }
 
 .empty-state,
