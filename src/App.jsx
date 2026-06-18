@@ -20,25 +20,33 @@ const initialTimerMinutes = 25;
 const celebrationDuration = 4200;
 
 const ballLayouts = [
-  { left: 9, top: 47, size: 48, rotate: -14 },
-  { left: 25, top: 56, size: 40, rotate: 18 },
-  { left: 43, top: 49, size: 52, rotate: -7 },
-  { left: 63, top: 57, size: 38, rotate: 22 },
-  { left: 74, top: 42, size: 46, rotate: -21 },
-  { left: 15, top: 31, size: 36, rotate: 11 },
-  { left: 36, top: 29, size: 44, rotate: -19 },
-  { left: 55, top: 34, size: 35, rotate: 16 },
-  { left: 70, top: 23, size: 42, rotate: -8 },
-  { left: 23, top: 14, size: 39, rotate: 20 },
-  { left: 48, top: 12, size: 47, rotate: -13 },
-  { left: 8, top: 61, size: 34, rotate: 25 },
-  { left: 58, top: 68, size: 45, rotate: -17 },
-  { left: 78, top: 66, size: 36, rotate: 9 },
-  { left: 34, top: 70, size: 37, rotate: -24 },
-  { left: 5, top: 19, size: 43, rotate: 7 },
-  { left: 82, top: 12, size: 33, rotate: -16 },
-  { left: 49, top: 58, size: 39, rotate: 13 },
+  { left: 2, top: 58, size: 24, rotate: -14 },
+  { left: 20, top: 68, size: 22, rotate: 18 },
+  { left: 39, top: 57, size: 27, rotate: -7 },
+  { left: 61, top: 67, size: 22, rotate: 22 },
+  { left: 75, top: 54, size: 25, rotate: -21 },
+  { left: 8, top: 35, size: 22, rotate: 11 },
+  { left: 29, top: 34, size: 25, rotate: -19 },
+  { left: 53, top: 39, size: 22, rotate: 16 },
+  { left: 72, top: 29, size: 24, rotate: -8 },
+  { left: 17, top: 13, size: 23, rotate: 20 },
+  { left: 43, top: 10, size: 26, rotate: -13 },
+  { left: 1, top: 79, size: 21, rotate: 25 },
+  { left: 56, top: 81, size: 24, rotate: -17 },
+  { left: 79, top: 78, size: 21, rotate: 9 },
+  { left: 33, top: 82, size: 22, rotate: -24 },
+  { left: 1, top: 17, size: 24, rotate: 7 },
+  { left: 79, top: 8, size: 21, rotate: -16 },
+  { left: 48, top: 62, size: 23, rotate: 13 },
 ];
+
+const ballAssets = {
+  work: "/assets/task-ball-blue.png",
+  health: "/assets/task-ball-mint.png",
+  study: "/assets/task-ball-yellow.png",
+  life: "/assets/task-ball-purple.png",
+  creative: "/assets/task-ball-pink.png",
+};
 
 function makeTask(name, category, dailyExclusive = false) {
   return {
@@ -164,7 +172,6 @@ export default function App() {
   const [elapsedBeforeStart, setElapsedBeforeStart] = useState(0);
   const [drawInProgress, setDrawInProgress] = useState(false);
   const [drawPhase, setDrawPhase] = useState("idle");
-  const [prizePieces, setPrizePieces] = useState({ fireworks: [], confetti: [] });
   const [finishPieces, setFinishPieces] = useState({ fireworks: [], confetti: [] });
   const [showFinishCelebration, setShowFinishCelebration] = useState(false);
   const [pendingPrize, setPendingPrize] = useState(null);
@@ -248,11 +255,17 @@ export default function App() {
   }
 
   function playSound(kind) {
-    if (kind === "roll") {
-      [180, 210, 165, 240].forEach((frequency, index) => playTone(frequency, index * 0.08, 0.09, "square", 0.06));
+    if (kind === "turn") {
+      [170, 205, 185, 230, 200, 260].forEach((frequency, index) =>
+        playTone(frequency, index * 0.075, 0.075, "square", 0.055),
+      );
     }
-    if (kind === "open") {
-      [523, 659, 784].forEach((frequency, index) => playTone(frequency, index * 0.07, 0.18, "triangle", 0.1));
+    if (kind === "drop") {
+      playTone(220, 0, 0.18, "sine", 0.08);
+      playTone(105, 0.16, 0.16, "triangle", 0.13);
+    }
+    if (kind === "click") {
+      [560, 760].forEach((frequency, index) => playTone(frequency, index * 0.045, 0.13, "triangle", 0.09));
     }
     if (kind === "finish") {
       [392, 523, 659, 784, 1046].forEach((frequency, index) => playTone(frequency, index * 0.1, 0.28, "triangle", 0.11));
@@ -281,7 +294,7 @@ export default function App() {
     if (drawInProgress) return;
     stopTimer();
     setMachineMode("draw");
-    playSound("roll");
+    playSound("turn");
     const getsSpecial = state.specialEnabled && Math.random() < 0.08;
     const selectedPrize = getsSpecial
       ? { kind: "special", ...pick(specials) }
@@ -293,46 +306,41 @@ export default function App() {
         : null;
 
     setDrawInProgress(true);
-    setDrawPhase("rolling");
+    setDrawPhase("turning");
     setPendingPrize(selectedPrize);
-    setPrizePieces({ fireworks: [], confetti: [] });
     setState((currentState) => ({ ...currentState, current: null }));
 
     window.setTimeout(() => {
       resetTimer(timerMinutes);
       if (selectedPrize) {
-        setDrawPhase("prize");
+        setDrawPhase("dropping");
+        playSound("drop");
+        window.setTimeout(() => setDrawPhase("prize"), 760);
       } else {
         setDrawPhase("idle");
         setDrawInProgress(false);
       }
-    }, 900);
+    }, 620);
   }
 
   function openPrizeBall() {
     if (drawPhase !== "prize") return;
-    setPrizePieces(buildPrizePieces());
-    setDrawPhase("celebrating");
-    playSound("open");
-
-    window.setTimeout(() => {
-      setState((currentState) => ({
-        ...currentState,
-        current: pendingPrize,
-        dailyDraws:
-          pendingPrize?.kind === "task"
-            ? [
-                ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
-                { date: todayKey(), key: taskKey(pendingPrize.name), taskId: pendingPrize.id },
-              ]
-            : currentState.dailyDraws,
-      }));
-      if (pendingPrize) setMachineMode("current");
-      setPrizePieces({ fireworks: [], confetti: [] });
-      setPendingPrize(null);
-      setDrawPhase("idle");
-      setDrawInProgress(false);
-    }, celebrationDuration);
+    playSound("click");
+    setState((currentState) => ({
+      ...currentState,
+      current: pendingPrize,
+      dailyDraws:
+        pendingPrize?.kind === "task"
+          ? [
+              ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
+              { date: todayKey(), key: taskKey(pendingPrize.name), taskId: pendingPrize.id },
+            ]
+          : currentState.dailyDraws,
+    }));
+    if (pendingPrize) setMachineMode("current");
+    setPendingPrize(null);
+    setDrawPhase("idle");
+    setDrawInProgress(false);
   }
 
   function chooseTaskDirectly(task) {
@@ -341,7 +349,6 @@ export default function App() {
     setDrawInProgress(false);
     setDrawPhase("idle");
     setPendingPrize(null);
-    setPrizePieces({ fireworks: [], confetti: [] });
     setState((currentState) => ({
       ...currentState,
       current: { kind: "task", ...task },
@@ -467,53 +474,79 @@ export default function App() {
               <section className="machine-stage" aria-labelledby="machineTitle">
                 <div className="stage-copy">
                   <p className="eyebrow">GACHA POMODORO</p>
-                  <h2 id="machineTitle">摇出下一颗任务球</h2>
+                  <h2 id="machineTitle">扭出下一颗任务球</h2>
                 </div>
 
                 <div className="gacha-wrap">
                   <div
-                    className={`gacha-machine ${drawPhase === "rolling" ? "shaking rolling" : ""}`}
-                    aria-hidden="true"
+                    className={`gacha-machine ${drawInProgress ? "has-turned" : ""} ${
+                      drawPhase === "turning" ? "turning" : ""
+                    }`}
                   >
-                    <div className="gacha-top">
-                      <div className="ball-cloud">
-                        {state.tasks.slice(0, 18).map((task, index) => {
-                          const category = categoryById(task.category);
-                          const layout = ballLayouts[index % ballLayouts.length];
-                          return (
-                            <span
-                              key={task.id}
-                              className="mini-ball"
-                              style={{
-                                left: `${layout.left}%`,
-                                top: `${layout.top}%`,
-                                width: `${layout.size}px`,
-                                height: `${layout.size}px`,
-                                "--base-rotate": `${layout.rotate}deg`,
-                                background: category.color,
-                                "--i": index,
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div className="glass-shine" />
+                    <div className="machine-ball-window" aria-hidden="true">
+                      {state.tasks.slice(0, 18).map((task, index) => {
+                        const layout = ballLayouts[index % ballLayouts.length];
+                        return (
+                          <img
+                            key={task.id}
+                            className="mini-ball"
+                            src={ballAssets[task.category] || ballAssets.work}
+                            alt=""
+                            style={{
+                              left: `${layout.left}%`,
+                              top: `${layout.top}%`,
+                              width: `${layout.size}%`,
+                              "--base-rotate": `${layout.rotate}deg`,
+                              "--i": index,
+                            }}
+                          />
+                        );
+                      })}
                     </div>
-                    <div className="gacha-neck" />
-                    <div className="gacha-body">
-                      <div className="dial">
-                        <div className="dial-dot" />
-                      </div>
-                      <div className="slot" />
-                    </div>
-                    <div className="gacha-base" />
+                    <img className="machine-art" src="/assets/gacha-machine.png" alt="薄荷绿色透明扭蛋机" />
+                    <button
+                      className="turn-knob"
+                      type="button"
+                      onClick={drawTask}
+                      disabled={drawInProgress}
+                      aria-label="扭一下抽取任务球"
+                    >
+                      <img src="/assets/gacha-knob.png" alt="" />
+                    </button>
+                    {(drawPhase === "dropping" || drawPhase === "prize") && pendingPrize && (
+                      <button
+                        className={`dropped-task-ball ${drawPhase === "prize" ? "ready" : ""}`}
+                        type="button"
+                        onClick={openPrizeBall}
+                        disabled={drawPhase !== "prize"}
+                        aria-label={drawPhase === "prize" ? "点击任务球查看任务" : "任务球正在掉落"}
+                      >
+                        <img
+                          src={
+                            pendingPrize.kind === "task"
+                              ? ballAssets[pendingPrize.category] || ballAssets.work
+                              : ballAssets.study
+                          }
+                          alt=""
+                        />
+                      </button>
+                    )}
+                  </div>
+                  <div className="turn-instruction" aria-live="polite">
+                    <strong>
+                      {drawPhase === "turning"
+                        ? "正在扭动…"
+                        : drawPhase === "dropping"
+                          ? "任务球掉出来了…"
+                          : drawPhase === "prize"
+                            ? "点击任务球"
+                            : "扭一下"}
+                    </strong>
+                    <span>{state.tasks.length ? "让下一件事自己出现" : "先添加任务球再来扭"}</span>
                   </div>
                 </div>
 
                 <div className="machine-actions">
-                  <button className="primary-action" type="button" onClick={drawTask} disabled={drawInProgress}>
-                    {drawPhase === "rolling" ? "摇动中..." : drawInProgress ? "开奖中..." : "摇一个！"}
-                  </button>
                   <button className="ghost-action" type="button" onClick={resetWeek}>
                     开启新一周
                   </button>
@@ -541,13 +574,6 @@ export default function App() {
             )}
           </div>
         </section>
-
-        <PrizeModal
-          phase={drawPhase}
-          prizePieces={prizePieces}
-          pendingPrize={pendingPrize}
-          onOpenPrizeBall={openPrizeBall}
-        />
 
         <FinishCelebration show={showFinishCelebration} pieces={finishPieces} />
 
@@ -751,64 +777,6 @@ function CurrentPanel({
         </div>
       )}
     </section>
-  );
-}
-
-function PrizeModal({ phase, prizePieces, pendingPrize, onOpenPrizeBall }) {
-  if (phase === "idle" || phase === "rolling") return null;
-
-  const category = pendingPrize?.kind === "task" ? categoryById(pendingPrize.category) : null;
-  const ballColor = category?.color || "#f3b43f";
-
-  return (
-    <div className="prize-modal" aria-live="polite">
-      <div className="modal-prize-burst" aria-hidden="true">
-        {prizePieces.fireworks.map((item, index) => (
-          <span
-            key={`modal-firework-${index}`}
-            className="firework"
-            style={{
-              "--x": `${item.x}%`,
-              "--y": `${item.y}%`,
-              "--delay": `${item.delay}s`,
-              "--c": item.color,
-            }}
-          />
-        ))}
-        {prizePieces.confetti.map((item, index) => (
-          <span
-            key={`modal-confetti-${index}`}
-            className="confetti"
-            style={{
-              "--x": `${item.x}%`,
-              "--delay": `${item.delay}s`,
-              "--drift": `${item.drift}px`,
-              "--r": `${item.rotate}deg`,
-              "--c": item.color,
-            }}
-          />
-        ))}
-      </div>
-
-      {phase === "prize" && (
-        <button
-          className="modal-prize-ball"
-          style={{ "--ball-color": ballColor }}
-          type="button"
-          onClick={onOpenPrizeBall}
-          aria-label="打开扭蛋球"
-        >
-          <span className="modal-prize-seam" />
-          <span className="modal-prize-shine" />
-        </button>
-      )}
-
-      {phase === "celebrating" && (
-        <div className="modal-celebration-badge">
-          <span>中奖啦</span>
-        </div>
-      )}
-    </div>
   );
 }
 
