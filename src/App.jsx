@@ -504,6 +504,7 @@ export default function App() {
                       })}
                     </div>
                     <img className="machine-art" src="/assets/gacha-machine.png" alt="薄荷绿色透明扭蛋机" />
+                    <img className="machine-sticker" src="/assets/gacha-sticker.png" alt="" aria-hidden="true" />
                     <button
                       className="turn-knob"
                       type="button"
