@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { chooseTask, isoWeekKey, suggestedBallCount, todayKey } from "./planning.js";
+import {
+  buildCategoryStats,
+  buildFocusStory,
+  buildWeeklyMessage,
+  groupCompletedTasks,
+} from "./weeklySummary.js";
+import { groupTaskPool } from "./taskGroups.js";
 
 const categories = [
   { id: "work", name: "工作", color: "#4d7fd6" },
@@ -260,6 +267,14 @@ export default function App() {
   const summaryTotal = useMemo(
     () => state.completed.reduce((sum, item) => sum + item.minutes, 0),
     [state.completed],
+  );
+  const categoryStats = useMemo(
+    () => buildCategoryStats(categories, state.tasks, state.completed),
+    [state.tasks, state.completed],
+  );
+  const weeklyMessage = useMemo(
+    () => buildWeeklyMessage(weekStats.percent, categoryStats),
+    [weekStats.percent, categoryStats],
   );
   const completedToday = useMemo(
     () =>
@@ -757,7 +772,7 @@ export default function App() {
                 清理完成记录
               </button>
             </div>
-            <TaskQueue tasks={state.tasks} onChooseTask={chooseTaskDirectly} />
+            <TaskQueue tasks={state.tasks} completed={state.completed} onChooseTask={chooseTaskDirectly} />
           </section>
         </section>
 
@@ -774,19 +789,43 @@ export default function App() {
             <p className="eyebrow">WEEKLY REVIEW</p>
             <h2 id="summaryTitle">周总结</h2>
           </div>
-          <div className="summary-strip">
-            <div>
-              <span>总投入</span>
-              <strong>{formatMinutes(summaryTotal)}</strong>
+
+          <p className="weekly-message">{weeklyMessage}</p>
+
+          <section className="summary-overview" aria-label="本周整体完成情况">
+            <div className="completion-ring-wrap">
+              <div
+                className="completion-ring"
+                style={{ "--completion": `${weekStats.percent * 3.6}deg` }}
+                role="img"
+                aria-label={`本周完成率 ${weekStats.percent}%`}
+              >
+                <div className="completion-ring-center">
+                  <strong>{weekStats.percent}%</strong>
+                  <span>本周完成</span>
+                </div>
+              </div>
+              <p>
+                完成 {weekStats.done} 颗 · 剩余 {state.tasks.length} 颗
+              </p>
             </div>
-            <div>
-              <span>完成事件</span>
-              <strong>{state.completed.length}</strong>
+
+            <div className="focus-story">
+              <span aria-hidden="true">◷</span>
+              <p>{buildFocusStory(summaryTotal)}</p>
             </div>
-            <div>
-              <span>剩余球数</span>
-              <strong>{state.tasks.length}</strong>
+          </section>
+
+          <section className="summary-categories" aria-labelledby="summaryCategoriesTitle">
+            <div className="section-head compact">
+              <h3 id="summaryCategoriesTitle">分类完成情况</h3>
             </div>
+            <CategoryBars categoryStats={categoryStats} />
+          </section>
+
+          <div className="section-head compact summary-history-head">
+            <h3>完成记录</h3>
+            <span>{state.completed.length} 次完成</span>
           </div>
           <SummaryList completed={state.completed} />
         </section>
@@ -944,13 +983,22 @@ function FinishCelebration({ show, pieces }) {
   );
 }
 
-function TaskQueue({ tasks, onChooseTask }) {
-  if (!tasks.length) {
+function TaskQueue({ tasks, completed, onChooseTask }) {
+  const [expandedGroups, setExpandedGroups] = useState([]);
+  const taskGroups = useMemo(() => groupTaskPool(tasks, completed), [tasks, completed]);
+
+  function toggleGroup(groupKey) {
+    setExpandedGroups((current) =>
+      current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey],
+    );
+  }
+
+  if (!taskGroups.length) {
     return (
       <div className="task-queue">
         <div className="task-row">
-          <strong>本周任务池已清空</strong>
-          <span className="task-meta">漂亮，去看周总结。</span>
+          <strong>本周还没有任务球</strong>
+          <span className="task-meta">添加任务后会显示在这里。</span>
         </div>
       </div>
     );
@@ -958,22 +1006,66 @@ function TaskQueue({ tasks, onChooseTask }) {
 
   return (
     <div className="task-queue">
-      {tasks.map((task) => {
-        const category = categoryById(task.category);
+      {taskGroups.map((group) => {
+        const category = categoryById(group.category);
+        const isExpanded = expandedGroups.includes(group.key);
         return (
-          <div className="task-row" key={task.id}>
-            <div>
-              <strong>{task.name}</strong>
-              <div className="task-meta">{category.name}</div>
-              {task.dailyExclusive && <div className="task-meta">同名当天只抽一次</div>}
-            </div>
-            <div className="task-row-actions">
-              <span className="swatch" style={{ background: category.color }} />
-              <button className="choose-task-action" type="button" onClick={() => onChooseTask(task)}>
-                选做
+          <article className={`task-group-card ${isExpanded ? "is-expanded" : ""}`} key={group.key}>
+            <div className="task-group-main">
+              <button
+                className="task-group-toggle"
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                aria-expanded={isExpanded}
+                aria-label={`${isExpanded ? "收起" : "展开"}${group.name}任务球详情`}
+              >
+                <span className="task-group-copy">
+                  <strong>{group.name}</strong>
+                  <span className="task-meta">
+                    {category.name}
+                    {group.dailyExclusive ? " · 同名当天只抽一次" : ""}
+                  </span>
+                </span>
+                <span className="task-group-summary">
+                  <span className="swatch" style={{ background: category.color }} />
+                  {group.allCompleted ? (
+                    <span className="task-all-complete">✓ 全部完成</span>
+                  ) : (
+                    group.pending.length > 1 && <strong>× {group.pending.length}</strong>
+                  )}
+                  <span className="task-expand-arrow" aria-hidden="true">
+                    ▾
+                  </span>
+                </span>
               </button>
+              {!group.allCompleted && (
+                <button
+                  className="choose-task-action"
+                  type="button"
+                  onClick={() => onChooseTask(group.pending[0])}
+                >
+                  指定完成
+                </button>
+              )}
             </div>
-          </div>
+
+            {isExpanded && (
+              <div className="task-ball-details">
+                {group.pending.map((task, index) => (
+                  <div className="task-ball-status" key={`pending-${task.id}`}>
+                    <span className="task-ball-index">球 {index + 1}</span>
+                    <span className="task-status-pending">待完成</span>
+                  </div>
+                ))}
+                {group.completed.map((task, index) => (
+                  <div className="task-ball-status is-complete" key={`completed-${task.id}-${task.completedAt}`}>
+                    <span className="task-ball-index">球 {group.pending.length + index + 1}</span>
+                    <span className="task-status-complete">✓ 已完成</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
         );
       })}
     </div>
@@ -1010,6 +1102,32 @@ function CategoryProgress({ tasks, completed }) {
   );
 }
 
+function CategoryBars({ categoryStats }) {
+  return (
+    <div className="summary-category-list">
+      {categoryStats.map((category) => (
+        <div className="summary-category-row" key={category.id}>
+          <div className="summary-category-label">
+            <span className="progress-name">
+              <span className="swatch" style={{ background: category.color }} />
+              {category.name}
+            </span>
+            <strong>
+              {category.done} / {category.total} 颗
+            </strong>
+          </div>
+          <div className="meter-track">
+            <div
+              className="meter-fill"
+              style={{ width: `${category.percent}%`, background: category.color }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SummaryList({ completed }) {
   if (!completed.length) {
     return (
@@ -1022,18 +1140,21 @@ function SummaryList({ completed }) {
     );
   }
 
+  const grouped = groupCompletedTasks(completed);
+
   return (
     <div className="summary-list">
-      {[...completed].reverse().map((item) => {
+      {grouped.map((item) => {
         const category = categoryById(item.category);
-        const date = new Date(item.completedAt);
         return (
-          <article className="summary-item" key={`${item.id}-${item.completedAt}`}>
+          <article className="summary-item" key={item.key}>
             <div>
-              <strong>{item.name}</strong>
+              <strong>
+                {item.name}
+                {item.count > 1 && <span className="summary-count"> × {item.count}</span>}
+              </strong>
               <div className="summary-meta">
-                {category.name} ·{" "}
-                {date.toLocaleDateString("zh-CN", { weekday: "short", month: "numeric", day: "numeric" })}
+                {category.name} · {item.dateLabel}
               </div>
             </div>
             <strong>{formatMinutes(item.minutes)}</strong>
