@@ -10,6 +10,10 @@ export function buildCategoryStats(categories, tasks, completed) {
   });
 }
 
+export function activeCategoryStats(categoryStats) {
+  return categoryStats.filter((category) => category.total > 0);
+}
+
 export function buildWeeklyMessage(percent, categoryStats) {
   let message;
   if (percent === 100) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { chooseTask, isoWeekKey, suggestedBallCount, todayKey } from "./planning.js";
 import {
+  activeCategoryStats,
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyMessage,
@@ -186,6 +187,8 @@ export default function App() {
   const [timerMinutes, setTimerMinutes] = useState(initialTimerMinutes);
   const [timerRemaining, setTimerRemaining] = useState(initialTimerMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [timerFinished, setTimerFinished] = useState(false);
   const [elapsedBeforeStart, setElapsedBeforeStart] = useState(0);
   const [drawInProgress, setDrawInProgress] = useState(false);
   const [drawPhase, setDrawPhase] = useState("idle");
@@ -283,12 +286,16 @@ export default function App() {
   );
   const suggestedToday = state.dailyRhythm?.suggested ?? suggestedBallCount(state.tasks.length);
   const todayGoalReached = completedToday >= suggestedToday;
+  const todayProgress = suggestedToday
+    ? Math.min(100, Math.round((completedToday / suggestedToday) * 100))
+    : 100;
 
   function resetTimer(minutes = timerMinutes) {
     const safeMinutes = Math.min(120, Math.max(1, Number(minutes) || initialTimerMinutes));
     stopTimer();
     setTimerMinutes(safeMinutes);
     setTimerRemaining(safeMinutes * 60);
+    setTimerFinished(false);
     setElapsedBeforeStart(0);
   }
 
@@ -346,18 +353,15 @@ export default function App() {
   function finishTimer() {
     stopTimer();
     setTimerRemaining(0);
-    setFinishPieces(buildPrizePieces());
-    setShowFinishCelebration(true);
+    setTimerFinished(true);
     playSound("finish");
-    window.setTimeout(() => {
-      setShowFinishCelebration(false);
-      setFinishPieces({ fireworks: [], confetti: [] });
-    }, celebrationDuration);
   }
 
   function startTimer() {
     if (!state.current || state.current.kind !== "task") return;
     getAudioContext();
+    setFocusMode(true);
+    setTimerFinished(false);
     if (!timerRunning) setTimerRunning(true);
   }
 
@@ -448,7 +452,7 @@ export default function App() {
   function addTasks(event) {
     event.preventDefault();
     const cleanName = taskName.trim();
-    const count = Math.min(30, Math.max(1, Number(taskCount) || 1));
+    const count = Math.min(20, Math.max(1, Number(taskCount) || 1));
     if (!cleanName) return;
 
     setState((currentState) => ({
@@ -485,6 +489,9 @@ export default function App() {
       ],
       current: null,
     }));
+    setFocusMode(false);
+    setTimerFinished(false);
+    setView("machine");
     setMachineMode("draw");
     resetTimer(timerMinutes);
   }
@@ -538,6 +545,41 @@ export default function App() {
     setMachineMode("draw");
   }
 
+  function abandonFocusTask() {
+    if (!confirm("放弃后这颗球会放回扭蛋机，确认放弃？")) return;
+    stopTimer();
+    setFocusMode(false);
+    setTimerFinished(false);
+    setState((currentState) => ({ ...currentState, current: null }));
+    setMachineMode("draw");
+    setView("machine");
+    resetTimer(timerMinutes);
+  }
+
+  function exitPausedFocus() {
+    if (timerRunning) return;
+    setFocusMode(false);
+  }
+
+  if (focusMode && state.current?.kind === "task") {
+    return (
+      <FocusMode
+        current={state.current}
+        timerText={timerText}
+        timerRunning={timerRunning}
+        timerFinished={timerFinished}
+        progressPercent={
+          timerMinutes ? Math.max(0, Math.min(100, (timerRemaining / (timerMinutes * 60)) * 100)) : 0
+        }
+        onPause={stopTimer}
+        onContinue={startTimer}
+        onAbandon={abandonFocusTask}
+        onExit={exitPausedFocus}
+        onComplete={completeCurrentTask}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="主导航">
@@ -574,11 +616,16 @@ export default function App() {
                   <div>
                     <p className="eyebrow">GACHA POMODORO</p>
                     <h2 id="machineTitle">扭出下一颗任务球</h2>
-                    <p className={`today-rhythm ${todayGoalReached ? "is-complete" : ""}`}>
-                      {todayGoalReached
-                        ? "今日目标达成 ✓"
-                        : `今天建议 ${suggestedToday} 颗 · 已完成 ${completedToday} 颗`}
-                    </p>
+                    <div className={`today-rhythm ${todayGoalReached ? "is-complete" : ""}`}>
+                      <span>
+                        {todayGoalReached
+                          ? "今日目标达成 ✓"
+                          : `今天建议 ${suggestedToday} 颗 · 已完成 ${completedToday} 颗`}
+                      </span>
+                      <div className="today-progress-track" aria-hidden="true">
+                        <div className="today-progress-fill" style={{ width: `${todayProgress}%` }} />
+                      </div>
+                    </div>
                   </div>
                   <button className="new-week-action" type="button" onClick={resetWeek}>
                     新一周
@@ -710,17 +757,40 @@ export default function App() {
               </select>
             </label>
 
-            <label className="field">
+            <div className="field">
               <span>数量</span>
-              <input
-                type="number"
-                min="1"
-                max="30"
-                value={taskCount}
-                onChange={(event) => setTaskCount(event.target.value)}
-                required
-              />
-            </label>
+              <div className="quantity-stepper">
+                <button
+                  type="button"
+                  onClick={() => setTaskCount((count) => Math.max(1, Number(count) - 1))}
+                  disabled={Number(taskCount) <= 1}
+                  aria-label="减少任务数量"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={taskCount}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setTaskCount(value === "" ? "" : Math.min(20, Math.max(1, Number(value) || 1)));
+                  }}
+                  onBlur={() => setTaskCount(Math.min(20, Math.max(1, Number(taskCount) || 1)))}
+                  aria-label="任务数量"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setTaskCount((count) => Math.min(20, Number(count) + 1))}
+                  disabled={Number(taskCount) >= 20}
+                  aria-label="增加任务数量"
+                >
+                  +
+                </button>
+              </div>
+            </div>
 
             <label className="toggle-row full">
               <input
@@ -867,6 +937,62 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function FocusMode({
+  current,
+  timerText,
+  timerRunning,
+  timerFinished,
+  progressPercent,
+  onPause,
+  onContinue,
+  onAbandon,
+  onExit,
+  onComplete,
+}) {
+  const category = categoryById(current.category);
+
+  return (
+    <main className="focus-mode" aria-label="专注模式">
+      <header className="focus-header">
+        <span className="category-chip" style={{ background: category.color }}>
+          {category.name}
+        </span>
+        <h1>{current.name}</h1>
+      </header>
+
+      <section className="focus-timer" aria-live="polite">
+        {timerFinished && <p className="focus-finished-label">时间到！</p>}
+        <strong>{timerText}</strong>
+        <div className="focus-progress-track" aria-label={`剩余时间 ${Math.round(progressPercent)}%`}>
+          <div className="focus-progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </section>
+
+      <div className="focus-actions">
+        {timerFinished ? (
+          <button className="focus-complete-action" type="button" onClick={onComplete}>
+            完成这颗球 ✓
+          </button>
+        ) : (
+          <>
+            <button className="focus-primary-action" type="button" onClick={timerRunning ? onPause : onContinue}>
+              {timerRunning ? "暂停" : "继续"}
+            </button>
+            <button className="focus-abandon-action" type="button" onClick={onAbandon}>
+              放弃这颗球
+            </button>
+            {!timerRunning && (
+              <button className="focus-exit-action" type="button" onClick={onExit}>
+                结束专注
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </main>
   );
 }
 
@@ -1073,13 +1199,11 @@ function TaskQueue({ tasks, completed, onChooseTask }) {
 }
 
 function CategoryProgress({ tasks, completed }) {
+  const activeCategories = activeCategoryStats(buildCategoryStats(categories, tasks, completed));
+
   return (
     <div className="progress-grid">
-      {categories.map((category) => {
-        const remaining = tasks.filter((task) => task.category === category.id).length;
-        const done = completed.filter((task) => task.category === category.id).length;
-        const total = remaining + done;
-        const percent = total ? Math.round((done / total) * 100) : 0;
+      {activeCategories.map((category) => {
         return (
           <article className="progress-card" key={category.id}>
             <div className="progress-top">
@@ -1087,13 +1211,16 @@ function CategoryProgress({ tasks, completed }) {
                 <span className="swatch" style={{ background: category.color }} />
                 {category.name}
               </span>
-              <strong>{percent}%</strong>
+              <strong>{category.percent}%</strong>
             </div>
             <div className="meter-track">
-              <div className="meter-fill" style={{ width: `${percent}%`, background: category.color }} />
+              <div
+                className="meter-fill"
+                style={{ width: `${category.percent}%`, background: category.color }}
+              />
             </div>
             <p className="task-meta">
-              {done} 完成 / {remaining} 剩余
+              {category.done} 完成 / {category.remaining} 剩余
             </p>
           </article>
         );
@@ -1103,9 +1230,11 @@ function CategoryProgress({ tasks, completed }) {
 }
 
 function CategoryBars({ categoryStats }) {
+  const activeCategories = activeCategoryStats(categoryStats);
+
   return (
     <div className="summary-category-list">
-      {categoryStats.map((category) => (
+      {activeCategories.map((category) => (
         <div className="summary-category-row" key={category.id}>
           <div className="summary-category-label">
             <span className="progress-name">

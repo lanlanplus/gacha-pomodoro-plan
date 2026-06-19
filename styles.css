@@ -359,14 +359,45 @@ main {
 }
 
 .today-rhythm {
-  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+  width: fit-content;
+  min-width: min(280px, 100%);
+  margin: 12px 0 0;
+}
+
+.today-rhythm > span {
+  width: fit-content;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(31, 156, 149, 0.09);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
-.today-rhythm.is-complete {
+.today-rhythm.is-complete > span {
+  background: rgba(100, 168, 79, 0.1);
   color: var(--green);
+}
+
+.today-progress-track {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9e2d5;
+}
+
+.today-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+  transition: width 0.35s ease;
+}
+
+.today-rhythm.is-complete .today-progress-fill {
+  background: var(--green);
 }
 
 .new-week-action {
@@ -851,6 +882,161 @@ main {
   padding: 0 12px;
   color: var(--ink);
   outline: 0;
+}
+
+.quantity-stepper {
+  display: grid;
+  grid-template-columns: 48px minmax(64px, 1fr) 48px;
+  min-height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.quantity-stepper button {
+  border: 0;
+  background: rgba(247, 244, 238, 0.82);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.quantity-stepper button:first-child {
+  border-right: 1px solid var(--line);
+}
+
+.quantity-stepper button:last-child {
+  border-left: 1px solid var(--line);
+}
+
+.quantity-stepper button:disabled {
+  color: #bbb5aa;
+  cursor: default;
+}
+
+.quantity-stepper input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0 6px;
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+
+.quantity-stepper input::-webkit-inner-spin-button,
+.quantity-stepper input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.focus-mode {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  padding: clamp(28px, 6vw, 72px);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(31, 156, 149, 0.06), transparent 34%),
+    var(--bg);
+}
+
+.focus-header {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.focus-header h1 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(30px, 5vw, 54px);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.focus-timer {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 24px;
+  width: min(760px, 100%);
+  justify-self: center;
+}
+
+.focus-timer > strong {
+  font-size: clamp(82px, 20vw, 190px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.focus-finished-label {
+  margin: 0 0 -4px;
+  color: var(--green);
+  font-size: clamp(24px, 4vw, 38px);
+  font-weight: 800;
+}
+
+.focus-progress-track {
+  width: min(620px, 86vw);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5dfd3;
+}
+
+.focus-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+  transition: width 0.7s linear;
+}
+
+.focus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.focus-actions button {
+  min-height: 48px;
+  border-radius: 8px;
+  padding: 0 24px;
+  font-weight: 800;
+}
+
+.focus-primary-action,
+.focus-complete-action {
+  border: 0;
+  background: var(--ink);
+  color: white;
+  box-shadow: 0 14px 28px rgba(32, 33, 36, 0.14);
+}
+
+.focus-complete-action {
+  min-width: min(320px, 86vw);
+  background: var(--green);
+}
+
+.focus-abandon-action {
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--muted);
+}
+
+.focus-exit-action {
+  min-height: 36px !important;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .toggle-row {

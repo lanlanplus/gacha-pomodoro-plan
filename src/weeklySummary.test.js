@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  activeCategoryStats,
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyMessage,
@@ -38,6 +39,16 @@ test("calculates category completion stats", () => {
       { id: "health", done: 0, total: 1, percent: 0 },
       { id: "study", done: 0, total: 0, percent: 0 },
     ],
+  );
+});
+
+test("filters categories with no balls this week", () => {
+  assert.deepEqual(
+    activeCategoryStats([
+      { id: "work", total: 3 },
+      { id: "creative", total: 0 },
+    ]).map((category) => category.id),
+    ["work"],
   );
 });
 
