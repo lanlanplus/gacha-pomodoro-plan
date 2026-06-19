@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { chooseTask, isoWeekKey, suggestedBallCount, todayKey } from "./planning.js";
 
 const categories = [
   { id: "work", name: "工作", color: "#4d7fd6" },
@@ -16,6 +17,8 @@ const specials = [
 ];
 
 const storageKey = "gacha-pomodoro-week-plan";
+const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
+const mondayTipKeyPrefix = "gacha-pomodoro-monday-tip";
 const initialTimerMinutes = 25;
 const celebrationDuration = 4200;
 
@@ -84,16 +87,23 @@ function loadState() {
   }
 }
 
+function loadWeekendCategories() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(weekendCategoriesKey));
+    const validIds = categories.map((category) => category.id);
+    const selected = Array.isArray(parsed) ? parsed.filter((id) => validIds.includes(id)) : validIds;
+    return selected.length ? selected : [];
+  } catch {
+    return categories.map((category) => category.id);
+  }
+}
+
 function categoryById(id) {
   return categories.find((category) => category.id === id) || categories[0];
 }
 
 function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
-}
-
-function todayKey() {
-  return new Date().toLocaleDateString("en-CA");
 }
 
 function taskKey(name) {
@@ -103,12 +113,18 @@ function taskKey(name) {
 function normalizeState(parsed) {
   const seeded = seedState();
   const state = parsed ? { ...seeded, ...parsed } : seeded;
+  const date = todayKey();
+  const dailyRhythm =
+    state.dailyRhythm?.date === date
+      ? state.dailyRhythm
+      : { date, suggested: suggestedBallCount(state.tasks?.length || 0) };
   return {
     ...state,
     dailyDraws: Array.isArray(state.dailyDraws) ? state.dailyDraws : [],
     tasks: Array.isArray(state.tasks)
       ? state.tasks.map((task) => ({ dailyExclusive: false, ...task }))
       : seeded.tasks,
+    dailyRhythm,
   };
 }
 
@@ -142,16 +158,6 @@ function buildPrizePieces() {
   };
 }
 
-function chooseTask(tasks, dailyDraws) {
-  const date = todayKey();
-  const todaysKeys = new Set((dailyDraws || []).filter((item) => item.date === date).map((item) => item.key));
-  const allowed = tasks.filter((task) => !task.dailyExclusive || !todaysKeys.has(taskKey(task.name)));
-  const pool = allowed.length ? allowed : tasks.filter((task) => !task.dailyExclusive);
-  if (!pool.length) return null;
-  const fresh = pool.filter((task) => !todaysKeys.has(taskKey(task.name)));
-  return pick(fresh.length ? fresh : pool);
-}
-
 export default function App() {
   const navItems = [
     ["machine", "◎", "摇蛋机"],
@@ -161,6 +167,10 @@ export default function App() {
   ];
   const [view, setView] = useState("machine");
   const [state, setState] = useState(loadState);
+  const [currentDate, setCurrentDate] = useState(todayKey);
+  const [weekendCategories, setWeekendCategories] = useState(loadWeekendCategories);
+  const [showMondayTip, setShowMondayTip] = useState(false);
+  const [notice, setNotice] = useState("");
   const [machineMode, setMachineMode] = useState(() => (state.current ? "current" : "draw"));
   const [taskName, setTaskName] = useState("");
   const [taskCategory, setTaskCategory] = useState(categories[0].id);
@@ -182,6 +192,45 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    localStorage.setItem(weekendCategoriesKey, JSON.stringify(weekendCategories));
+  }, [weekendCategories]);
+
+  useEffect(() => {
+    const checkDate = () => {
+      const nextDate = todayKey();
+      if (nextDate !== currentDate) setCurrentDate(nextDate);
+    };
+    const interval = window.setInterval(checkDate, 60000);
+    return () => window.clearInterval(interval);
+  }, [currentDate]);
+
+  useEffect(() => {
+    setState((currentState) => {
+      if (currentState.dailyRhythm?.date === currentDate) return currentState;
+      return {
+        ...currentState,
+        dailyRhythm: {
+          date: currentDate,
+          suggested: suggestedBallCount(currentState.tasks.length),
+        },
+      };
+    });
+  }, [currentDate]);
+
+  useEffect(() => {
+    const now = new Date();
+    if (now.getDay() !== 1) return;
+    const tipKey = `${mondayTipKeyPrefix}-${isoWeekKey(now)}`;
+    if (!localStorage.getItem(tipKey)) setShowMondayTip(true);
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeout = window.setTimeout(() => setNotice(""), 4200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   useEffect(() => {
     if (!timerRunning) return undefined;
@@ -212,6 +261,13 @@ export default function App() {
     () => state.completed.reduce((sum, item) => sum + item.minutes, 0),
     [state.completed],
   );
+  const completedToday = useMemo(
+    () =>
+      state.completed.filter((item) => new Date(item.completedAt).toLocaleDateString("en-CA") === currentDate).length,
+    [state.completed, currentDate],
+  );
+  const suggestedToday = state.dailyRhythm?.suggested ?? suggestedBallCount(state.tasks.length);
+  const todayGoalReached = completedToday >= suggestedToday;
 
   function resetTimer(minutes = timerMinutes) {
     const safeMinutes = Math.min(120, Math.max(1, Number(minutes) || initialTimerMinutes));
@@ -300,8 +356,16 @@ export default function App() {
       ? { kind: "special", ...pick(specials) }
       : state.tasks.length
         ? (() => {
-            const selectedTask = chooseTask(state.tasks, state.dailyDraws);
-            return selectedTask ? { kind: "task", ...selectedTask } : null;
+            const result = chooseTask({
+              tasks: state.tasks,
+              dailyDraws: state.dailyDraws,
+              suggestedToday,
+              weekendCategories,
+            });
+            if (result?.weekendFallback) {
+              setNotice("你选择的周末类别已完成，从所有任务里随机啦");
+            }
+            return result?.task ? { kind: "task", ...result.task } : null;
           })()
         : null;
 
@@ -333,7 +397,12 @@ export default function App() {
         pendingPrize?.kind === "task"
           ? [
               ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
-              { date: todayKey(), key: taskKey(pendingPrize.name), taskId: pendingPrize.id },
+              {
+                date: todayKey(),
+                key: taskKey(pendingPrize.name),
+                taskId: pendingPrize.id,
+                category: pendingPrize.category,
+              },
             ]
           : currentState.dailyDraws,
     }));
@@ -354,7 +423,7 @@ export default function App() {
       current: { kind: "task", ...task },
       dailyDraws: [
         ...(currentState.dailyDraws || []).filter((item) => item.date === todayKey()).slice(-80),
-        { date: todayKey(), key: taskKey(task.name), taskId: task.id },
+        { date: todayKey(), key: taskKey(task.name), taskId: task.id, category: task.category },
       ],
     }));
     setMachineMode("current");
@@ -412,6 +481,7 @@ export default function App() {
       tasks: [],
       completed: [],
       dailyDraws: [],
+      dailyRhythm: { date: todayKey(), suggested: 0 },
       specialEnabled: currentState.specialEnabled,
       current: null,
     }));
@@ -426,6 +496,19 @@ export default function App() {
 
   function clearCompleted() {
     setState((currentState) => ({ ...currentState, completed: [] }));
+  }
+
+  function toggleWeekendCategory(categoryId) {
+    setWeekendCategories((selected) =>
+      selected.includes(categoryId)
+        ? selected.filter((id) => id !== categoryId)
+        : [...selected, categoryId],
+    );
+  }
+
+  function closeMondayTip() {
+    localStorage.setItem(`${mondayTipKeyPrefix}-${isoWeekKey()}`, "shown");
+    setShowMondayTip(false);
   }
 
   const timerText = `${Math.floor(timerRemaining / 60).toString().padStart(2, "0")}:${Math.floor(
@@ -473,8 +556,18 @@ export default function App() {
             {!showCurrentPanel && (
               <section className="machine-stage" aria-labelledby="machineTitle">
                 <div className="stage-copy">
-                  <p className="eyebrow">GACHA POMODORO</p>
-                  <h2 id="machineTitle">扭出下一颗任务球</h2>
+                  <div>
+                    <p className="eyebrow">GACHA POMODORO</p>
+                    <h2 id="machineTitle">扭出下一颗任务球</h2>
+                    <p className={`today-rhythm ${todayGoalReached ? "is-complete" : ""}`}>
+                      {todayGoalReached
+                        ? "今日目标达成 ✓"
+                        : `今天建议 ${suggestedToday} 颗 · 已完成 ${completedToday} 颗`}
+                    </p>
+                  </div>
+                  <button className="new-week-action" type="button" onClick={resetWeek}>
+                    新一周
+                  </button>
                 </div>
 
                 <div className="gacha-wrap">
@@ -545,12 +638,6 @@ export default function App() {
                     </strong>
                     <span>{state.tasks.length ? "让下一件事自己出现" : "先添加任务球再来扭"}</span>
                   </div>
-                </div>
-
-                <div className="machine-actions">
-                  <button className="ghost-action" type="button" onClick={resetWeek}>
-                    开启新一周
-                  </button>
                 </div>
               </section>
             )}
@@ -640,6 +727,24 @@ export default function App() {
               <span>同名任务当天只抽一次</span>
             </label>
 
+            <fieldset className="weekend-settings full">
+              <legend>周末只摇以下类别</legend>
+              <p>默认全选；周六、周日会自动避开未选类别。</p>
+              <div className="category-options">
+                {categories.map((category) => (
+                  <label key={category.id} className="category-option">
+                    <input
+                      type="checkbox"
+                      checked={weekendCategories.includes(category.id)}
+                      onChange={() => toggleWeekendCategory(category.id)}
+                    />
+                    <span className="swatch" style={{ background: category.color }} />
+                    <span>{category.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
             <button className="primary-action full" type="submit">
               加入摇蛋机
             </button>
@@ -701,6 +806,27 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {notice && (
+        <div className="app-toast" role="status" aria-live="polite">
+          {notice}
+        </div>
+      )}
+
+      {showMondayTip && (
+        <div className="monday-sheet-backdrop" role="presentation">
+          <section className="monday-sheet" role="dialog" aria-modal="true" aria-labelledby="mondayTipTitle">
+            <div className="sheet-handle" aria-hidden="true" />
+            <h2 id="mondayTipTitle">这周的节奏已经算好啦</h2>
+            <p>
+              本周共 {weekStats.total} 颗球，建议每天完成 {suggestedToday} 颗，周日前刚好清空 💪
+            </p>
+            <button className="primary-action" type="button" onClick={closeMondayTip}>
+              好的，开摇
+            </button>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
