@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { buildFocusConfetti, createWakeLockController } from "./focusMode.js";
 import { chooseTask, isoWeekKey, suggestedBallCount, todayKey } from "./planning.js";
 import {
   activeCategoryStats,
   buildCategoryStats,
   buildFocusStory,
+  buildWeeklyHighlights,
   buildWeeklyMessage,
   groupCompletedTasks,
 } from "./weeklySummary.js";
@@ -198,10 +200,20 @@ export default function App() {
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
   const audioRef = useRef(null);
+  const wakeLockControllerRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    const controller = createWakeLockController();
+    wakeLockControllerRef.current = controller;
+    return () => {
+      wakeLockControllerRef.current = null;
+      void controller.destroy();
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(weekendCategoriesKey, JSON.stringify(weekendCategories));
@@ -302,6 +314,7 @@ export default function App() {
   function stopTimer() {
     window.clearInterval(intervalRef.current);
     setTimerRunning(false);
+    void wakeLockControllerRef.current?.setRunning(false);
     if (startedAtRef.current) {
       const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
       setElapsedBeforeStart((value) => value + elapsed);
@@ -352,6 +365,7 @@ export default function App() {
 
   function finishTimer() {
     stopTimer();
+    void wakeLockControllerRef.current?.release();
     setTimerRemaining(0);
     setTimerFinished(true);
     playSound("finish");
@@ -360,6 +374,7 @@ export default function App() {
   function startTimer() {
     if (!state.current || state.current.kind !== "task") return;
     getAudioContext();
+    void wakeLockControllerRef.current?.activate();
     setFocusMode(true);
     setTimerFinished(false);
     if (!timerRunning) setTimerRunning(true);
@@ -471,6 +486,7 @@ export default function App() {
     const current = state.current;
     if (!current || current.kind !== "task") return;
     stopTimer();
+    void wakeLockControllerRef.current?.release();
     const elapsed = Math.max(elapsedBeforeStart, timerMinutes * 60 - timerRemaining);
     const minutes = Math.max(1, Math.round(elapsed / 60));
 
@@ -548,6 +564,7 @@ export default function App() {
   function abandonFocusTask() {
     if (!confirm("放弃后这颗球会放回扭蛋机，确认放弃？")) return;
     stopTimer();
+    void wakeLockControllerRef.current?.release();
     setFocusMode(false);
     setTimerFinished(false);
     setState((currentState) => ({ ...currentState, current: null }));
@@ -558,6 +575,7 @@ export default function App() {
 
   function exitPausedFocus() {
     if (timerRunning) return;
+    void wakeLockControllerRef.current?.release();
     setFocusMode(false);
   }
 
@@ -568,6 +586,7 @@ export default function App() {
         timerText={timerText}
         timerRunning={timerRunning}
         timerFinished={timerFinished}
+        timerMinutes={timerMinutes}
         progressPercent={
           timerMinutes ? Math.max(0, Math.min(100, (timerRemaining / (timerMinutes * 60)) * 100)) : 0
         }
@@ -888,9 +907,9 @@ export default function App() {
 
           <section className="summary-categories" aria-labelledby="summaryCategoriesTitle">
             <div className="section-head compact">
-              <h3 id="summaryCategoriesTitle">分类完成情况</h3>
+              <h3 id="summaryCategoriesTitle">本周亮点</h3>
             </div>
-            <CategoryBars categoryStats={categoryStats} />
+            <WeeklyHighlights categoryStats={categoryStats} />
           </section>
 
           <div className="section-head compact summary-history-head">
@@ -945,6 +964,7 @@ function FocusMode({
   timerText,
   timerRunning,
   timerFinished,
+  timerMinutes,
   progressPercent,
   onPause,
   onContinue,
@@ -953,9 +973,31 @@ function FocusMode({
   onComplete,
 }) {
   const category = categoryById(current.category);
+  const confetti = useMemo(() => buildFocusConfetti(), []);
 
   return (
-    <main className="focus-mode" aria-label="专注模式">
+    <main className={`focus-mode ${timerFinished ? "is-celebrating" : ""}`} aria-label="专注模式">
+      {timerFinished && (
+        <div className="focus-confetti" aria-hidden="true">
+          {confetti.map((piece, index) => (
+            <span
+              key={`focus-confetti-${index}`}
+              style={{
+                "--x": `${piece.x}%`,
+                "--size": `${piece.size}px`,
+                "--height": `${piece.height}px`,
+                "--delay": `${piece.delay}s`,
+                "--duration": `${piece.duration}s`,
+                "--drift": `${piece.drift}px`,
+                "--rotate": `${piece.rotate}deg`,
+                "--color": piece.color,
+                "--radius": piece.round ? "50%" : "2px",
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       <header className="focus-header">
         <span className="category-chip" style={{ background: category.color }}>
           {category.name}
@@ -964,8 +1006,14 @@ function FocusMode({
       </header>
 
       <section className="focus-timer" aria-live="polite">
-        {timerFinished && <p className="focus-finished-label">时间到！</p>}
-        <strong>{timerText}</strong>
+        {timerFinished ? (
+          <div className="focus-finish-stage">
+            <strong className="focus-finish-countdown">{timerText}</strong>
+            <p className="focus-finished-label">专注了 {timerMinutes} 分钟 🎉</p>
+          </div>
+        ) : (
+          <strong>{timerText}</strong>
+        )}
         <div className="focus-progress-track" aria-label={`剩余时间 ${Math.round(progressPercent)}%`}>
           <div className="focus-progress-fill" style={{ width: `${progressPercent}%` }} />
         </div>
@@ -973,7 +1021,7 @@ function FocusMode({
 
       <div className="focus-actions">
         {timerFinished ? (
-          <button className="focus-complete-action" type="button" onClick={onComplete}>
+          <button className="focus-complete-action focus-complete-reveal" type="button" onClick={onComplete}>
             完成这颗球 ✓
           </button>
         ) : (
@@ -1229,30 +1277,27 @@ function CategoryProgress({ tasks, completed }) {
   );
 }
 
-function CategoryBars({ categoryStats }) {
-  const activeCategories = activeCategoryStats(categoryStats);
+function WeeklyHighlights({ categoryStats }) {
+  const highlights = buildWeeklyHighlights(categoryStats);
 
   return (
-    <div className="summary-category-list">
-      {activeCategories.map((category) => (
-        <div className="summary-category-row" key={category.id}>
-          <div className="summary-category-label">
-            <span className="progress-name">
-              <span className="swatch" style={{ background: category.color }} />
-              {category.name}
-            </span>
-            <strong>
-              {category.done} / {category.total} 颗
-            </strong>
+    <div className="weekly-highlights">
+      {highlights.length ? (
+        highlights.map((highlight) => (
+          <div className="weekly-highlight" key={highlight.type}>
+            <div className="weekly-highlight-mark" aria-hidden="true">
+              <span className="swatch" style={{ background: highlight.category.color }} />
+              <span>{highlight.emoji}</span>
+            </div>
+            <p>
+              <strong>{highlight.category.name}</strong>
+              <span> · {highlight.text}</span>
+            </p>
           </div>
-          <div className="meter-track">
-            <div
-              className="meter-fill"
-              style={{ width: `${category.percent}%`, background: category.color }}
-            />
-          </div>
-        </div>
-      ))}
+        ))
+      ) : (
+        <p className="weekly-highlights-empty">这周还没有完成记录，快去摇球吧 🎲</p>
+      )}
     </div>
   );
 }

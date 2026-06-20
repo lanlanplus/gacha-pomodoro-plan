@@ -14,6 +14,50 @@ export function activeCategoryStats(categoryStats) {
   return categoryStats.filter((category) => category.total > 0);
 }
 
+export function buildWeeklyHighlights(categoryStats) {
+  const activeCategories = activeCategoryStats(categoryStats);
+  if (!activeCategories.some((category) => category.done > 0)) return [];
+
+  const highestRate = [...activeCategories].sort(
+    (a, b) => b.percent - a.percent || b.done - a.done,
+  )[0];
+  const mostCompleted = [...activeCategories].sort(
+    (a, b) => b.done - a.done || b.percent - a.percent,
+  )[0];
+  const mostRemaining = [...activeCategories]
+    .filter((category) => category.remaining > 0)
+    .sort((a, b) => b.remaining - a.remaining || b.done - a.done)[0];
+
+  const highlights = [
+    {
+      type: "completion-rate",
+      emoji: "🏆",
+      category: highestRate,
+      text: highestRate.percent === 100 ? "全部完成！" : `完成率最高（${highestRate.percent}%）`,
+    },
+  ];
+
+  if (mostCompleted.id !== highestRate.id) {
+    highlights.push({
+      type: "most-completed",
+      emoji: "⭐",
+      category: mostCompleted,
+      text: "本周完成最多",
+    });
+  }
+
+  if (mostRemaining) {
+    highlights.push({
+      type: "most-remaining",
+      emoji: "📌",
+      category: mostRemaining,
+      text: `还有 ${mostRemaining.remaining} 颗留到下周`,
+    });
+  }
+
+  return highlights;
+}
+
 export function buildWeeklyMessage(percent, categoryStats) {
   let message;
   if (percent === 100) {

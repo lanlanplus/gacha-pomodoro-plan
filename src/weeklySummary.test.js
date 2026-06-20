@@ -4,6 +4,7 @@ import {
   activeCategoryStats,
   buildCategoryStats,
   buildFocusStory,
+  buildWeeklyHighlights,
   buildWeeklyMessage,
   groupCompletedTasks,
 } from "./weeklySummary.js";
@@ -50,6 +51,47 @@ test("filters categories with no balls this week", () => {
     ]).map((category) => category.id),
     ["work"],
   );
+});
+
+test("builds up to three weekly highlights with distinct completion leaders", () => {
+  const highlights = buildWeeklyHighlights([
+    { id: "work", name: "工作", done: 2, remaining: 3, total: 5, percent: 40 },
+    { id: "health", name: "健康", done: 4, remaining: 1, total: 5, percent: 80 },
+    { id: "creative", name: "创意", done: 3, remaining: 0, total: 3, percent: 100 },
+  ]);
+
+  assert.deepEqual(
+    highlights.map(({ type, category, text }) => ({ type, category: category.id, text })),
+    [
+      { type: "completion-rate", category: "creative", text: "全部完成！" },
+      { type: "most-completed", category: "health", text: "本周完成最多" },
+      { type: "most-remaining", category: "work", text: "还有 3 颗留到下周" },
+    ],
+  );
+});
+
+test("breaks equal completion rates by completed count and avoids duplicate leaders", () => {
+  const highlights = buildWeeklyHighlights([
+    { id: "work", name: "工作", done: 1, remaining: 1, total: 2, percent: 50 },
+    { id: "health", name: "健康", done: 3, remaining: 3, total: 6, percent: 50 },
+  ]);
+
+  assert.equal(highlights[0].category.id, "health");
+  assert.equal(highlights.some((highlight) => highlight.type === "most-completed"), false);
+});
+
+test("returns no highlights without completions and omits remaining when the week is complete", () => {
+  assert.deepEqual(
+    buildWeeklyHighlights([
+      { id: "work", name: "工作", done: 0, remaining: 2, total: 2, percent: 0 },
+    ]),
+    [],
+  );
+
+  const completedWeek = buildWeeklyHighlights([
+    { id: "study", name: "学习", done: 2, remaining: 0, total: 2, percent: 100 },
+  ]);
+  assert.deepEqual(completedWeek.map((highlight) => highlight.type), ["completion-rate"]);
 });
 
 test("converts focus time into articles or movies", () => {
