@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildFocusConfetti, createWakeLockController } from "./focusMode.js";
-import { chooseTask, isoWeekKey, suggestedBallCount, todayKey } from "./planning.js";
+import { chooseTask, isoWeekKey, todayKey } from "./planning.js";
+import {
+  getTaskHistorySuggestions,
+  normalizeTaskHistory,
+  recordTaskHistory,
+} from "./taskHistory.js";
 import {
   activeCategoryStats,
   buildCategoryStats,
@@ -28,8 +33,10 @@ const specials = [
 
 const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
+const taskHistoryKey = "gacha-pomodoro-task-history";
 const mondayTipKeyPrefix = "gacha-pomodoro-monday-tip";
 const initialTimerMinutes = 25;
+const defaultDailyTarget = 3;
 const celebrationDuration = 4200;
 
 const ballLayouts = [
@@ -83,6 +90,7 @@ function seedState() {
     ],
     completed: [],
     dailyDraws: [],
+    dailyTarget: defaultDailyTarget,
     specialEnabled: true,
     current: null,
   };
@@ -108,6 +116,14 @@ function loadWeekendCategories() {
   }
 }
 
+function loadTaskHistory() {
+  try {
+    return normalizeTaskHistory(JSON.parse(localStorage.getItem(taskHistoryKey)));
+  } catch {
+    return [];
+  }
+}
+
 function categoryById(id) {
   return categories.find((category) => category.id === id) || categories[0];
 }
@@ -123,18 +139,13 @@ function taskKey(name) {
 function normalizeState(parsed) {
   const seeded = seedState();
   const state = parsed ? { ...seeded, ...parsed } : seeded;
-  const date = todayKey();
-  const dailyRhythm =
-    state.dailyRhythm?.date === date
-      ? state.dailyRhythm
-      : { date, suggested: suggestedBallCount(state.tasks?.length || 0) };
   return {
     ...state,
     dailyDraws: Array.isArray(state.dailyDraws) ? state.dailyDraws : [],
     tasks: Array.isArray(state.tasks)
       ? state.tasks.map((task) => ({ dailyExclusive: false, ...task }))
       : seeded.tasks,
-    dailyRhythm,
+    dailyTarget: Math.min(10, Math.max(1, Number(state.dailyTarget) || defaultDailyTarget)),
   };
 }
 
@@ -186,6 +197,8 @@ export default function App() {
   const [taskCategory, setTaskCategory] = useState(categories[0].id);
   const [taskCount, setTaskCount] = useState(1);
   const [taskDailyExclusive, setTaskDailyExclusive] = useState(false);
+  const [taskHistory, setTaskHistory] = useState(loadTaskHistory);
+  const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
   const [timerMinutes, setTimerMinutes] = useState(initialTimerMinutes);
   const [timerRemaining, setTimerRemaining] = useState(initialTimerMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -220,25 +233,16 @@ export default function App() {
   }, [weekendCategories]);
 
   useEffect(() => {
+    localStorage.setItem(taskHistoryKey, JSON.stringify(taskHistory));
+  }, [taskHistory]);
+
+  useEffect(() => {
     const checkDate = () => {
       const nextDate = todayKey();
       if (nextDate !== currentDate) setCurrentDate(nextDate);
     };
     const interval = window.setInterval(checkDate, 60000);
     return () => window.clearInterval(interval);
-  }, [currentDate]);
-
-  useEffect(() => {
-    setState((currentState) => {
-      if (currentState.dailyRhythm?.date === currentDate) return currentState;
-      return {
-        ...currentState,
-        dailyRhythm: {
-          date: currentDate,
-          suggested: suggestedBallCount(currentState.tasks.length),
-        },
-      };
-    });
   }, [currentDate]);
 
   useEffect(() => {
@@ -296,7 +300,7 @@ export default function App() {
       state.completed.filter((item) => new Date(item.completedAt).toLocaleDateString("en-CA") === currentDate).length,
     [state.completed, currentDate],
   );
-  const suggestedToday = state.dailyRhythm?.suggested ?? suggestedBallCount(state.tasks.length);
+  const suggestedToday = state.dailyTarget;
   const todayGoalReached = completedToday >= suggestedToday;
   const todayProgress = suggestedToday
     ? Math.min(100, Math.round((completedToday / suggestedToday) * 100))
@@ -477,9 +481,11 @@ export default function App() {
         ...Array.from({ length: count }, () => makeTask(cleanName, taskCategory, taskDailyExclusive)),
       ],
     }));
+    setTaskHistory((history) => recordTaskHistory(history, cleanName, taskCategory));
     setTaskName("");
     setTaskCount(1);
     setTaskDailyExclusive(false);
+    setShowTaskSuggestions(false);
   }
 
   function completeCurrentTask() {
@@ -519,7 +525,7 @@ export default function App() {
       tasks: [],
       completed: [],
       dailyDraws: [],
-      dailyRhythm: { date: todayKey(), suggested: 0 },
+      dailyTarget: currentState.dailyTarget,
       specialEnabled: currentState.specialEnabled,
       current: null,
     }));
@@ -555,6 +561,16 @@ export default function App() {
     .toString()
     .padStart(2, "0")}`;
   const showCurrentPanel = machineMode === "current" && state.current;
+  const taskSuggestions = useMemo(
+    () => getTaskHistorySuggestions(taskHistory, taskName),
+    [taskHistory, taskName],
+  );
+
+  function selectTaskSuggestion(suggestion) {
+    setTaskName(suggestion.name);
+    setTaskCategory(suggestion.category);
+    setShowTaskSuggestions(false);
+  }
 
   function returnToMachine() {
     stopTimer();
@@ -753,7 +769,7 @@ export default function App() {
           </div>
 
           <form className="task-form" onSubmit={addTasks}>
-            <label className="field full">
+            <label className="field full task-name-field">
               <span>任务名</span>
               <input
                 type="text"
@@ -761,8 +777,29 @@ export default function App() {
                 placeholder="例如：有氧运动"
                 required
                 value={taskName}
-                onChange={(event) => setTaskName(event.target.value)}
+                onFocus={() => setShowTaskSuggestions(true)}
+                onBlur={() => window.setTimeout(() => setShowTaskSuggestions(false), 100)}
+                onChange={(event) => {
+                  setTaskName(event.target.value);
+                  setShowTaskSuggestions(true);
+                }}
               />
+              {showTaskSuggestions && taskSuggestions.length > 0 && (
+                <div className="task-suggestions" role="listbox" aria-label="历史任务建议">
+                  {taskSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.name.toLocaleLowerCase()}
+                      type="button"
+                      role="option"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectTaskSuggestion(suggestion)}
+                    >
+                      <span>{suggestion.name}</span>
+                      <small>{categoryById(suggestion.category).name}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
             </label>
 
             <label className="field">
@@ -820,6 +857,24 @@ export default function App() {
                 }
               />
               <span>开启特殊球</span>
+            </label>
+
+            <label className="field full daily-target-field">
+              <span>每日目标球数</span>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={state.dailyTarget}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "") return;
+                  setState((currentState) => ({
+                    ...currentState,
+                    dailyTarget: Math.min(10, Math.max(1, Number(value) || defaultDailyTarget)),
+                  }));
+                }}
+              />
             </label>
 
             <label className="toggle-row full">
@@ -947,7 +1002,7 @@ export default function App() {
             <div className="sheet-handle" aria-hidden="true" />
             <h2 id="mondayTipTitle">这周的节奏已经算好啦</h2>
             <p>
-              本周共 {weekStats.total} 颗球，建议每天完成 {suggestedToday} 颗，周日前刚好清空 💪
+              本周共 {weekStats.total} 颗球，你设置的每日目标是 {suggestedToday} 颗 💪
             </p>
             <button className="primary-action" type="button" onClick={closeMondayTip}>
               好的，开摇
@@ -1084,7 +1139,7 @@ function CurrentPanel({
           </div>
           <div className="timer-controls">
             <button className="timer-start-button" type="button" onClick={timerRunning ? stopTimer : startTimer}>
-              {timerRunning ? "Ⅱ" : "▶"}
+              {timerRunning ? "暂停专注 Ⅱ" : "开始专注 ▶"}
             </button>
             <button type="button" onClick={resetTimer}>
               ↺
@@ -1100,7 +1155,7 @@ function CurrentPanel({
               />
             </label>
           </div>
-          <button className="complete-action" type="button" onClick={completeCurrentTask}>
+          <button className="task-skip-complete" type="button" onClick={completeCurrentTask}>
             完成此任务
           </button>
         </div>

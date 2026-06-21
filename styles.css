@@ -785,7 +785,7 @@ main {
 
 .timer-controls {
   display: grid;
-  grid-template-columns: 76px 52px minmax(100px, 1fr);
+  grid-template-columns: minmax(190px, 1fr) 52px minmax(100px, 1fr);
   gap: 10px;
   align-items: center;
 }
@@ -801,9 +801,26 @@ main {
   border-color: #202124;
   background: #202124;
   color: white;
-  font-size: 28px;
+  padding: 0 22px;
+  font-size: 18px;
   font-weight: 900;
   box-shadow: 0 12px 24px rgba(32, 33, 36, 0.16);
+}
+
+.task-skip-complete {
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 10px;
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-color: rgba(91, 87, 80, 0.35);
+  text-underline-offset: 3px;
+}
+
+.task-skip-complete:hover {
+  color: var(--ink);
 }
 
 .timer-controls label {
@@ -882,6 +899,56 @@ main {
   padding: 0 12px;
   color: var(--ink);
   outline: 0;
+}
+
+.task-name-field {
+  position: relative;
+}
+
+.task-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 12;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 14px 30px rgba(32, 33, 36, 0.14);
+}
+
+.task-suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: white;
+  padding: 0 12px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.task-suggestions button:last-child {
+  border-bottom: 0;
+}
+
+.task-suggestions button:hover {
+  background: rgba(31, 156, 149, 0.08);
+}
+
+.task-suggestions small {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.daily-target-field input {
+  max-width: 180px;
 }
 
 .quantity-stepper {
@@ -1973,7 +2040,11 @@ main {
   }
 
   .timer-controls {
-    grid-template-columns: 68px 48px 1fr;
+    grid-template-columns: 1fr 48px;
+  }
+
+  .timer-controls label {
+    grid-column: 1 / -1;
   }
 
   .task-row {
