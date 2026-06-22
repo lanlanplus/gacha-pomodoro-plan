@@ -197,6 +197,8 @@ export default function App() {
   const [showRhythmTip, setShowRhythmTip] = useState(false);
   const [showNewWeekChoice, setShowNewWeekChoice] = useState(false);
   const [isNewWeekSetup, setIsNewWeekSetup] = useState(false);
+  const [showGachaSettings, setShowGachaSettings] = useState(false);
+  const [showTaskPool, setShowTaskPool] = useState(false);
   const [notice, setNotice] = useState("");
   const [machineMode, setMachineMode] = useState(() => (state.current ? "current" : "draw"));
   const [taskName, setTaskName] = useState("");
@@ -861,101 +863,133 @@ export default function App() {
             <label className="toggle-row full">
               <input
                 type="checkbox"
-                checked={state.specialEnabled}
-                onChange={(event) =>
-                  setState((currentState) => ({ ...currentState, specialEnabled: event.target.checked }))
-                }
-              />
-              <span>开启特殊球</span>
-            </label>
-
-            <div className="field full daily-target-field">
-              <span>每日目标球数</span>
-              <div className="quantity-stepper">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setState((currentState) => ({
-                      ...currentState,
-                      dailyTarget: Math.max(minDailyTarget, currentState.dailyTarget - 1),
-                    }))
-                  }
-                  disabled={state.dailyTarget <= minDailyTarget}
-                  aria-label="减少每日目标球数"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={minDailyTarget}
-                  max={maxDailyTarget}
-                  value={state.dailyTarget}
-                  readOnly
-                  aria-label="每日目标球数"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setState((currentState) => ({
-                      ...currentState,
-                      dailyTarget: Math.min(maxDailyTarget, currentState.dailyTarget + 1),
-                    }))
-                  }
-                  disabled={state.dailyTarget >= maxDailyTarget}
-                  aria-label="增加每日目标球数"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            <label className="toggle-row full">
-              <input
-                type="checkbox"
                 checked={taskDailyExclusive}
                 onChange={(event) => setTaskDailyExclusive(event.target.checked)}
               />
               <span>同名任务当天只抽一次</span>
             </label>
 
-            <fieldset className="weekend-settings full">
-              <legend>周末只摇以下类别</legend>
-              <p>默认全选；周六、周日会自动避开未选类别。</p>
-              <div className="category-options">
-                {categories.map((category) => (
-                  <label key={category.id} className="category-option">
-                    <input
-                      type="checkbox"
-                      checked={weekendCategories.includes(category.id)}
-                      onChange={() => toggleWeekendCategory(category.id)}
-                    />
-                    <span className="swatch" style={{ background: category.color }} />
-                    <span>{category.name}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
             <button className="primary-action full" type="submit">
               加入摇蛋机
             </button>
-
-            {isNewWeekSetup && (
-              <button className="ghost-action full" type="button" onClick={finishNewWeekSetup}>
-                确认完成
-              </button>
-            )}
           </form>
 
-          <section className="queue-section" aria-labelledby="queueTitle">
-            <div className="section-head compact">
-              <h3 id="queueTitle">本周任务池</h3>
-              <button className="ghost-action small" type="button" onClick={clearCompleted}>
-                清理完成记录
-              </button>
-            </div>
-            <TaskQueue tasks={state.tasks} completed={state.completed} onChooseTask={chooseTaskDirectly} />
+          <section className="collapsible-section" aria-labelledby="gachaSettingsTitle">
+            <button
+              className="collapsible-section-toggle"
+              type="button"
+              aria-expanded={showGachaSettings}
+              aria-controls="gachaSettingsContent"
+              onClick={() => setShowGachaSettings((show) => !show)}
+            >
+              <span id="gachaSettingsTitle">⚙️ 摇球设置</span>
+              <span aria-hidden="true">{showGachaSettings ? "∧" : "∨"}</span>
+            </button>
+            {showGachaSettings && (
+              <div id="gachaSettingsContent" className="collapsible-section-content settings-content">
+                <div className="field full daily-target-field">
+                  <span>每日目标球数</span>
+                  <div className="quantity-stepper">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setState((currentState) => ({
+                          ...currentState,
+                          dailyTarget: Math.max(minDailyTarget, currentState.dailyTarget - 1),
+                        }))
+                      }
+                      disabled={state.dailyTarget <= minDailyTarget}
+                      aria-label="减少每日目标球数"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min={minDailyTarget}
+                      max={maxDailyTarget}
+                      value={state.dailyTarget}
+                      readOnly
+                      aria-label="每日目标球数"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setState((currentState) => ({
+                          ...currentState,
+                          dailyTarget: Math.min(maxDailyTarget, currentState.dailyTarget + 1),
+                        }))
+                      }
+                      disabled={state.dailyTarget >= maxDailyTarget}
+                      aria-label="增加每日目标球数"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <label className="toggle-row full">
+                  <input
+                    type="checkbox"
+                    checked={state.specialEnabled}
+                    onChange={(event) =>
+                      setState((currentState) => ({
+                        ...currentState,
+                        specialEnabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>开启特殊球</span>
+                </label>
+
+                <fieldset className="weekend-settings full">
+                  <legend>周末只摇以下类别</legend>
+                  <p>默认全选；周六、周日会自动避开未选类别。</p>
+                  <div className="category-options">
+                    {categories.map((category) => (
+                      <label key={category.id} className="category-option">
+                        <input
+                          type="checkbox"
+                          checked={weekendCategories.includes(category.id)}
+                          onChange={() => toggleWeekendCategory(category.id)}
+                        />
+                        <span className="swatch" style={{ background: category.color }} />
+                        <span>{category.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            )}
           </section>
+
+          <section className="collapsible-section" aria-labelledby="taskPoolTitle">
+            <button
+              className="collapsible-section-toggle"
+              type="button"
+              aria-expanded={showTaskPool}
+              aria-controls="taskPoolContent"
+              onClick={() => setShowTaskPool((show) => !show)}
+            >
+              <span id="taskPoolTitle">📋 本周任务池</span>
+              <span aria-hidden="true">{showTaskPool ? "∧" : "∨"}</span>
+            </button>
+            {showTaskPool && (
+              <div id="taskPoolContent" className="collapsible-section-content">
+                <div className="section-head compact task-pool-actions">
+                  <button className="ghost-action small" type="button" onClick={clearCompleted}>
+                    清理完成记录
+                  </button>
+                </div>
+                <TaskQueue tasks={state.tasks} completed={state.completed} onChooseTask={chooseTaskDirectly} />
+              </div>
+            )}
+          </section>
+
+          {isNewWeekSetup && (
+            <button className="ghost-action new-week-confirm-action" type="button" onClick={finishNewWeekSetup}>
+              确认完成
+            </button>
+          )}
         </section>
 
         <section id="progress" className={`view ${view === "progress" ? "active" : ""}`} aria-labelledby="progressTitle">

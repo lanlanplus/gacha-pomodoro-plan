@@ -316,6 +316,7 @@ main {
 .machine-stage,
 .current-panel,
 .task-form,
+.collapsible-section,
 .queue-section,
 .progress-card,
 .summary-strip,
@@ -875,6 +876,54 @@ main {
   gap: 14px;
   max-width: 760px;
   padding: 18px;
+}
+
+.collapsible-section {
+  max-width: 760px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.collapsible-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  background: transparent;
+  padding: 0 18px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.collapsible-section-toggle span:last-child {
+  flex: none;
+  font-size: 18px;
+}
+
+.collapsible-section-content {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-content {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+}
+
+.task-pool-actions {
+  justify-content: flex-end;
+  padding-top: 14px;
+}
+
+.new-week-confirm-action {
+  width: min(760px, 100%);
+  margin-top: 14px;
 }
 
 .field,
