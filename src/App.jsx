@@ -37,6 +37,8 @@ const taskHistoryKey = "gacha-pomodoro-task-history";
 const mondayTipKeyPrefix = "gacha-pomodoro-monday-tip";
 const initialTimerMinutes = 25;
 const defaultDailyTarget = 3;
+const minDailyTarget = 1;
+const maxDailyTarget = 16;
 const celebrationDuration = 4200;
 
 const ballLayouts = [
@@ -145,7 +147,10 @@ function normalizeState(parsed) {
     tasks: Array.isArray(state.tasks)
       ? state.tasks.map((task) => ({ dailyExclusive: false, ...task }))
       : seeded.tasks,
-    dailyTarget: Math.min(10, Math.max(1, Number(state.dailyTarget) || defaultDailyTarget)),
+    dailyTarget: Math.min(
+      maxDailyTarget,
+      Math.max(minDailyTarget, Number(state.dailyTarget) || defaultDailyTarget),
+    ),
   };
 }
 
@@ -859,23 +864,45 @@ export default function App() {
               <span>开启特殊球</span>
             </label>
 
-            <label className="field full daily-target-field">
+            <div className="field full daily-target-field">
               <span>每日目标球数</span>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={state.dailyTarget}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "") return;
-                  setState((currentState) => ({
-                    ...currentState,
-                    dailyTarget: Math.min(10, Math.max(1, Number(value) || defaultDailyTarget)),
-                  }));
-                }}
-              />
-            </label>
+              <div className="quantity-stepper">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setState((currentState) => ({
+                      ...currentState,
+                      dailyTarget: Math.max(minDailyTarget, currentState.dailyTarget - 1),
+                    }))
+                  }
+                  disabled={state.dailyTarget <= minDailyTarget}
+                  aria-label="减少每日目标球数"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={minDailyTarget}
+                  max={maxDailyTarget}
+                  value={state.dailyTarget}
+                  readOnly
+                  aria-label="每日目标球数"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setState((currentState) => ({
+                      ...currentState,
+                      dailyTarget: Math.min(maxDailyTarget, currentState.dailyTarget + 1),
+                    }))
+                  }
+                  disabled={state.dailyTarget >= maxDailyTarget}
+                  aria-label="增加每日目标球数"
+                >
+                  +
+                </button>
+              </div>
+            </div>
 
             <label className="toggle-row full">
               <input
