@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildFocusConfetti, createWakeLockController } from "./focusMode.js";
-import { chooseTask, isoWeekKey, todayKey } from "./planning.js";
+import { chooseTask, todayKey } from "./planning.js";
 import {
   getTaskHistorySuggestions,
   normalizeTaskHistory,
@@ -34,7 +34,6 @@ const specials = [
 const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
-const mondayTipKeyPrefix = "gacha-pomodoro-monday-tip";
 const initialTimerMinutes = 25;
 const defaultDailyTarget = 3;
 const minDailyTarget = 1;
@@ -195,7 +194,9 @@ export default function App() {
   const [state, setState] = useState(loadState);
   const [currentDate, setCurrentDate] = useState(todayKey);
   const [weekendCategories, setWeekendCategories] = useState(loadWeekendCategories);
-  const [showMondayTip, setShowMondayTip] = useState(false);
+  const [showRhythmTip, setShowRhythmTip] = useState(false);
+  const [showNewWeekChoice, setShowNewWeekChoice] = useState(false);
+  const [isNewWeekSetup, setIsNewWeekSetup] = useState(false);
   const [notice, setNotice] = useState("");
   const [machineMode, setMachineMode] = useState(() => (state.current ? "current" : "draw"));
   const [taskName, setTaskName] = useState("");
@@ -249,13 +250,6 @@ export default function App() {
     const interval = window.setInterval(checkDate, 60000);
     return () => window.clearInterval(interval);
   }, [currentDate]);
-
-  useEffect(() => {
-    const now = new Date();
-    if (now.getDay() !== 1) return;
-    const tipKey = `${mondayTipKeyPrefix}-${isoWeekKey(now)}`;
-    if (!localStorage.getItem(tipKey)) setShowMondayTip(true);
-  }, []);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -523,19 +517,35 @@ export default function App() {
     resetTimer(timerMinutes);
   }
 
-  function resetWeek() {
-    if (!confirm("开启新一周会清空当前任务池和本周总结。确定继续吗？")) return;
+  function startNewWeekSetup(clearTasks) {
     stopTimer();
     setState((currentState) => ({
-      tasks: [],
+      tasks: clearTasks ? [] : currentState.tasks,
       completed: [],
       dailyDraws: [],
       dailyTarget: currentState.dailyTarget,
       specialEnabled: currentState.specialEnabled,
       current: null,
     }));
+    setShowNewWeekChoice(false);
+    setIsNewWeekSetup(true);
     setMachineMode("draw");
+    setView("add");
     resetTimer(timerMinutes);
+  }
+
+  function openNewWeekSetup() {
+    if (state.tasks.length) {
+      setShowNewWeekChoice(true);
+      return;
+    }
+    startNewWeekSetup(false);
+  }
+
+  function finishNewWeekSetup() {
+    setIsNewWeekSetup(false);
+    setView("machine");
+    setShowRhythmTip(true);
   }
 
   function claimSpecial() {
@@ -553,11 +563,6 @@ export default function App() {
         ? selected.filter((id) => id !== categoryId)
         : [...selected, categoryId],
     );
-  }
-
-  function closeMondayTip() {
-    localStorage.setItem(`${mondayTipKeyPrefix}-${isoWeekKey()}`, "shown");
-    setShowMondayTip(false);
   }
 
   const timerText = `${Math.floor(timerRemaining / 60).toString().padStart(2, "0")}:${Math.floor(
@@ -667,7 +672,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <button className="new-week-action" type="button" onClick={resetWeek}>
+                  <button className="new-week-action" type="button" onClick={openNewWeekSetup}>
                     新一周
                   </button>
                 </div>
@@ -934,6 +939,12 @@ export default function App() {
             <button className="primary-action full" type="submit">
               加入摇蛋机
             </button>
+
+            {isNewWeekSetup && (
+              <button className="ghost-action full" type="button" onClick={finishNewWeekSetup}>
+                确认完成
+              </button>
+            )}
           </form>
 
           <section className="queue-section" aria-labelledby="queueTitle">
@@ -1023,7 +1034,28 @@ export default function App() {
         </div>
       )}
 
-      {showMondayTip && (
+      {showNewWeekChoice && (
+        <div className="monday-sheet-backdrop" role="presentation">
+          <section
+            className="monday-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="newWeekChoiceTitle"
+          >
+            <div className="sheet-handle" aria-hidden="true" />
+            <h2 id="newWeekChoiceTitle">还有 {state.tasks.length} 颗球未完成</h2>
+            <p>要把这些球带到新一周吗？</p>
+            <button className="primary-action" type="button" onClick={() => startNewWeekSetup(false)}>
+              保留并继续
+            </button>
+            <button className="ghost-action" type="button" onClick={() => startNewWeekSetup(true)}>
+              清空重来
+            </button>
+          </section>
+        </div>
+      )}
+
+      {showRhythmTip && (
         <div className="monday-sheet-backdrop" role="presentation">
           <section className="monday-sheet" role="dialog" aria-modal="true" aria-labelledby="mondayTipTitle">
             <div className="sheet-handle" aria-hidden="true" />
@@ -1031,7 +1063,7 @@ export default function App() {
             <p>
               本周共 {weekStats.total} 颗球，你设置的每日目标是 {suggestedToday} 颗 💪
             </p>
-            <button className="primary-action" type="button" onClick={closeMondayTip}>
+            <button className="primary-action" type="button" onClick={() => setShowRhythmTip(false)}>
               好的，开摇
             </button>
           </section>

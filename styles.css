@@ -1281,8 +1281,13 @@ main {
   line-height: 1.65;
 }
 
-.monday-sheet .primary-action {
+.monday-sheet .primary-action,
+.monday-sheet .ghost-action {
   width: 100%;
+}
+
+.monday-sheet .ghost-action {
+  margin-top: 10px;
 }
 
 .queue-section {
