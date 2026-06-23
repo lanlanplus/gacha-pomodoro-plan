@@ -1055,7 +1055,7 @@ main {
   grid-template-rows: auto 1fr auto;
   min-height: 100dvh;
   overflow: hidden;
-  padding: clamp(28px, 6vw, 72px);
+  padding: clamp(24px, 5vw, 56px);
   background:
     radial-gradient(circle at 50% 42%, rgba(31, 156, 149, 0.06), transparent 34%),
     var(--bg);
@@ -1065,80 +1065,96 @@ main {
   position: relative;
   z-index: 2;
   display: grid;
-  justify-items: center;
-  gap: 14px;
-  text-align: center;
+  justify-items: start;
+  gap: 8px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.focus-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.focus-task-meta .category-chip {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 4px 9px;
+  font-size: 12px;
 }
 
 .focus-header h1 {
-  max-width: 800px;
+  min-width: 0;
   margin: 0;
-  font-size: clamp(30px, 5vw, 54px);
-  line-height: 1.1;
+  font-size: clamp(16px, 2.4vw, 20px);
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.focus-timer {
+.focus-time {
+  font-size: clamp(28px, 4vw, 32px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.focus-visual {
   position: relative;
   z-index: 2;
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 24px;
+  gap: 16px;
   width: min(760px, 100%);
   justify-self: center;
 }
 
-.focus-timer > strong {
-  font-size: clamp(82px, 20vw, 190px);
-  font-variant-numeric: tabular-nums;
-  font-weight: 900;
-  letter-spacing: -0.055em;
-  line-height: 0.95;
-}
-
-.focus-finish-stage {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  min-height: clamp(100px, 20vw, 190px);
-}
-
-.focus-finish-countdown {
-  font-size: clamp(82px, 20vw, 190px);
-  font-variant-numeric: tabular-nums;
-  font-weight: 900;
-  letter-spacing: -0.055em;
-  line-height: 0.95;
-  animation: focus-countdown-finish 0.68s cubic-bezier(0.2, 0.86, 0.28, 1) both;
-}
-
 .focus-finished-label {
-  position: absolute;
+  max-width: min(520px, 88vw);
   margin: 0;
-  color: var(--ink);
-  font-size: clamp(34px, 7vw, 68px);
-  font-weight: 900;
-  line-height: 1.15;
+  color: #666;
+  font-size: clamp(16px, 2.5vw, 18px);
+  font-weight: 600;
+  line-height: 1.5;
   text-align: center;
   opacity: 0;
   animation: focus-finished-message 0.42s ease-out 0.48s both;
 }
 
-.focus-progress-track {
-  width: min(620px, 86vw);
-  height: 8px;
+.focus-tree {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(200px, 58vw);
+  aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 999px;
-  background: #e5dfd3;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
 }
 
-.focus-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--teal);
-  transition: width 0.7s linear;
+.focus-tree img {
+  position: absolute;
+  width: 75%;
+  height: 75%;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.focus-tree img.is-visible {
+  opacity: 1;
+}
+
+.focus-stage-label {
+  margin: 0;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .focus-actions {
@@ -1990,6 +2006,7 @@ main {
   .firework::after,
   .confetti,
   .focus-confetti span,
+  .focus-tree img,
   .focus-finish-countdown,
   .focus-finished-label,
   .focus-complete-reveal,
@@ -2005,7 +2022,8 @@ main {
   }
 
   .nav-tabs::before,
-  .nav-tab {
+  .nav-tab,
+  .focus-tree img {
     transition-duration: 0.01ms;
   }
 }

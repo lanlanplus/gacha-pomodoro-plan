@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildFocusConfetti, createWakeLockController } from "./focusMode.js";
+import {
+  buildFocusConfetti,
+  createFocusDistractionController,
+  createWakeLockController,
+  getFocusCompletionState,
+  getFocusTreeStage,
+} from "./focusMode.js";
 
 function createDocumentMock() {
   const listeners = new Map();
@@ -15,6 +21,27 @@ function createDocumentMock() {
     dispatch(name) {
       listeners.get(name)?.();
     },
+    listenerCount() {
+      return listeners.size;
+    },
+  };
+}
+
+function createWindowMock() {
+  const listeners = new Map();
+  return {
+    addEventListener(name, listener) {
+      listeners.set(name, listener);
+    },
+    removeEventListener(name) {
+      listeners.delete(name);
+    },
+    dispatch(name) {
+      listeners.get(name)?.();
+    },
+    listenerCount() {
+      return listeners.size;
+    },
   };
 }
 
@@ -26,6 +53,70 @@ test("builds restrained focus confetti using category colors and 6px to 12px siz
     [...new Set(pieces.map((piece) => piece.color))],
     ["#4d7fd6", "#64a84f", "#f3b43f", "#1f9c95", "#d95f92"],
   );
+});
+
+test("advances the focus tree every five minutes and caps it at the fifth image", () => {
+  const start = 25 * 60;
+  assert.equal(getFocusTreeStage(start, start), 0);
+  assert.equal(getFocusTreeStage(start, start - 299), 0);
+  assert.equal(getFocusTreeStage(start, start - 300), 1);
+  assert.equal(getFocusTreeStage(start, start - 1200), 4);
+  assert.equal(getFocusTreeStage(start, 0), 4);
+});
+
+test("supports one-minute tree stages in development mode", () => {
+  const start = 5 * 60;
+  assert.equal(getFocusTreeStage(start, start, 60), 0);
+  assert.equal(getFocusTreeStage(start, start - 59, 60), 0);
+  assert.equal(getFocusTreeStage(start, start - 60, 60), 1);
+  assert.equal(getFocusTreeStage(start, start - 240, 60), 4);
+  assert.equal(getFocusTreeStage(start, 0, 60), 4);
+});
+
+test("restarts tree growth from stage one after the growth baseline is reset", () => {
+  assert.equal(getFocusTreeStage(17 * 60, 17 * 60), 0);
+  assert.equal(getFocusTreeStage(17 * 60, 12 * 60), 1);
+});
+
+test("reports hidden and visible focus-page transitions for distraction handling", () => {
+  const documentObject = createDocumentMock();
+  const windowObject = createWindowMock();
+  let leaves = 0;
+  let returns = 0;
+  const controller = createFocusDistractionController({
+    documentObject,
+    windowObject,
+    onLeave: () => {
+      leaves += 1;
+    },
+    onReturn: () => {
+      returns += 1;
+    },
+  });
+
+  documentObject.visibilityState = "hidden";
+  documentObject.dispatch("visibilitychange");
+  documentObject.visibilityState = "visible";
+  documentObject.dispatch("visibilitychange");
+  windowObject.dispatch("pagehide");
+  windowObject.dispatch("blur");
+
+  assert.equal(leaves, 3);
+  assert.equal(returns, 1);
+  controller.destroy();
+  assert.equal(documentObject.listenerCount(), 0);
+  assert.equal(windowObject.listenerCount(), 0);
+});
+
+test("uses the distracted completion message and suppresses confetti", () => {
+  assert.deepEqual(getFocusCompletionState(true, 25), {
+    showConfetti: false,
+    message: "完成了 25 分钟，下次试试全程专注 🌱",
+  });
+  assert.deepEqual(getFocusCompletionState(false, 25), {
+    showConfetti: true,
+    message: "专注了 25 分钟 🎉",
+  });
 });
 
 test("requests and releases the screen wake lock without reacquiring while paused", async () => {

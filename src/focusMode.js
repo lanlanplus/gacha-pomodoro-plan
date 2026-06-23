@@ -1,4 +1,57 @@
 const focusColors = ["#4d7fd6", "#64a84f", "#f3b43f", "#1f9c95", "#d95f92"];
+const treeStageSeconds = 5 * 60;
+
+export function getFocusTreeStage(
+  growthStartRemaining,
+  timerRemaining,
+  stageSeconds = treeStageSeconds,
+) {
+  const elapsedSinceGrowthStart = Math.max(0, growthStartRemaining - timerRemaining);
+  return Math.min(4, Math.floor(elapsedSinceGrowthStart / stageSeconds));
+}
+
+export function getFocusCompletionState(hasDistracted, timerMinutes) {
+  return hasDistracted
+    ? {
+        showConfetti: false,
+        message: `完成了 ${timerMinutes} 分钟，下次试试全程专注 🌱`,
+      }
+    : {
+        showConfetti: true,
+        message: `专注了 ${timerMinutes} 分钟 🎉`,
+      };
+}
+
+export function createFocusDistractionController({
+  documentObject = globalThis.document,
+  windowObject = globalThis.window,
+  onLeave,
+  onReturn,
+} = {}) {
+  function handleVisibilityChange() {
+    if (documentObject?.visibilityState === "hidden") {
+      onLeave?.();
+    } else if (documentObject?.visibilityState === "visible") {
+      onReturn?.();
+    }
+  }
+
+  function handlePageLeave() {
+    onLeave?.();
+  }
+
+  documentObject?.addEventListener?.("visibilitychange", handleVisibilityChange);
+  windowObject?.addEventListener?.("pagehide", handlePageLeave);
+  windowObject?.addEventListener?.("blur", handlePageLeave);
+
+  return {
+    destroy() {
+      documentObject?.removeEventListener?.("visibilitychange", handleVisibilityChange);
+      windowObject?.removeEventListener?.("pagehide", handlePageLeave);
+      windowObject?.removeEventListener?.("blur", handlePageLeave);
+    },
+  };
+}
 
 export function buildFocusConfetti(count = 48) {
   return Array.from({ length: count }, (_, index) => {

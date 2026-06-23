@@ -1,11 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { buildFocusConfetti, createWakeLockController } from "./focusMode.js";
+import {
+  buildFocusConfetti,
+  createFocusDistractionController,
+  createWakeLockController,
+  getFocusCompletionState,
+  getFocusTreeStage,
+} from "./focusMode.js";
 import { chooseTask, todayKey } from "./planning.js";
 import {
   getTaskHistorySuggestions,
   normalizeTaskHistory,
   recordTaskHistory,
 } from "./taskHistory.js";
+import { runtimeConfig } from "./runtimeConfig.js";
 import {
   activeCategoryStats,
   buildCategoryStats,
@@ -34,7 +41,7 @@ const specials = [
 const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
-const initialTimerMinutes = 25;
+const { initialTimerMinutes, treeStageSeconds } = runtimeConfig;
 const defaultDailyTarget = 3;
 const minDailyTarget = 1;
 const maxDailyTarget = 16;
@@ -213,6 +220,10 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [timerFinished, setTimerFinished] = useState(false);
   const [elapsedBeforeStart, setElapsedBeforeStart] = useState(0);
+  const [hasDistracted, setHasDistracted] = useState(false);
+  const [treeGrowthStartRemaining, setTreeGrowthStartRemaining] = useState(
+    initialTimerMinutes * 60,
+  );
   const [drawInProgress, setDrawInProgress] = useState(false);
   const [drawPhase, setDrawPhase] = useState("idle");
   const [finishPieces, setFinishPieces] = useState({ fireworks: [], confetti: [] });
@@ -222,6 +233,8 @@ export default function App() {
   const startedAtRef = useRef(null);
   const audioRef = useRef(null);
   const wakeLockControllerRef = useRef(null);
+  const timerRemainingRef = useRef(initialTimerMinutes * 60);
+  const hasDistractedRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
@@ -243,6 +256,27 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(taskHistoryKey, JSON.stringify(taskHistory));
   }, [taskHistory]);
+
+  useEffect(() => {
+    timerRemainingRef.current = timerRemaining;
+  }, [timerRemaining]);
+
+  useEffect(() => {
+    if (!focusMode || timerFinished) return undefined;
+
+    const controller = createFocusDistractionController({
+      onLeave: () => {
+        hasDistractedRef.current = true;
+        setHasDistracted(true);
+        setTreeGrowthStartRemaining(timerRemainingRef.current);
+      },
+      onReturn: () => {
+        setTreeGrowthStartRemaining(timerRemainingRef.current);
+      },
+    });
+
+    return () => controller.destroy();
+  }, [focusMode, timerFinished]);
 
   useEffect(() => {
     const checkDate = () => {
@@ -314,6 +348,9 @@ export default function App() {
     setTimerRemaining(safeMinutes * 60);
     setTimerFinished(false);
     setElapsedBeforeStart(0);
+    hasDistractedRef.current = false;
+    setHasDistracted(false);
+    setTreeGrowthStartRemaining(safeMinutes * 60);
   }
 
   function stopTimer() {
@@ -608,6 +645,7 @@ export default function App() {
   }
 
   if (focusMode && state.current?.kind === "task") {
+    const focusWasDistracted = hasDistracted || hasDistractedRef.current;
     return (
       <FocusMode
         current={state.current}
@@ -615,9 +653,12 @@ export default function App() {
         timerRunning={timerRunning}
         timerFinished={timerFinished}
         timerMinutes={timerMinutes}
-        progressPercent={
-          timerMinutes ? Math.max(0, Math.min(100, (timerRemaining / (timerMinutes * 60)) * 100)) : 0
-        }
+        treeStage={getFocusTreeStage(
+          treeGrowthStartRemaining,
+          timerRemaining,
+          treeStageSeconds,
+        )}
+        hasDistracted={focusWasDistracted}
         onPause={stopTimer}
         onContinue={startTimer}
         onAbandon={abandonFocusTask}
@@ -1113,7 +1154,8 @@ function FocusMode({
   timerRunning,
   timerFinished,
   timerMinutes,
-  progressPercent,
+  treeStage,
+  hasDistracted,
   onPause,
   onContinue,
   onAbandon,
@@ -1122,10 +1164,15 @@ function FocusMode({
 }) {
   const category = categoryById(current.category);
   const confetti = useMemo(() => buildFocusConfetti(), []);
+  const completion = getFocusCompletionState(hasDistracted, timerMinutes);
+  const displayedTreeStage = timerFinished && !hasDistracted ? 4 : treeStage;
 
   return (
-    <main className={`focus-mode ${timerFinished ? "is-celebrating" : ""}`} aria-label="专注模式">
-      {timerFinished && (
+    <main
+      className={`focus-mode ${timerFinished && completion.showConfetti ? "is-celebrating" : ""}`}
+      aria-label="专注模式"
+    >
+      {timerFinished && completion.showConfetti && (
         <div className="focus-confetti" aria-hidden="true">
           {confetti.map((piece, index) => (
             <span
@@ -1147,24 +1194,42 @@ function FocusMode({
       )}
 
       <header className="focus-header">
-        <span className="category-chip" style={{ background: category.color }}>
-          {category.name}
-        </span>
-        <h1>{current.name}</h1>
+        <div className="focus-task-meta">
+          <span className="category-chip" style={{ background: category.color }}>
+            {category.name}
+          </span>
+          <h1>{current.name}</h1>
+        </div>
+        {!timerFinished && (
+          <strong className="focus-time" aria-live="polite">
+            {timerText}
+          </strong>
+        )}
       </header>
 
-      <section className="focus-timer" aria-live="polite">
-        {timerFinished ? (
-          <div className="focus-finish-stage">
-            <strong className="focus-finish-countdown">{timerText}</strong>
-            <p className="focus-finished-label">专注了 {timerMinutes} 分钟 🎉</p>
-          </div>
-        ) : (
-          <strong>{timerText}</strong>
-        )}
-        <div className="focus-progress-track" aria-label={`剩余时间 ${Math.round(progressPercent)}%`}>
-          <div className="focus-progress-fill" style={{ width: `${progressPercent}%` }} />
+      <section className="focus-visual" aria-live="polite">
+        <div
+          className="focus-tree"
+          role="img"
+          aria-label={`小树生长阶段 ${displayedTreeStage + 1}/5`}
+        >
+          {[1, 2, 3, 4, 5].map((stage, index) => (
+            <img
+              key={stage}
+              className={index === displayedTreeStage ? "is-visible" : ""}
+              src={`/images/tree/tree-${stage}.png`}
+              alt=""
+              aria-hidden="true"
+            />
+          ))}
         </div>
+        {timerFinished ? (
+          <p className="focus-finished-label">{completion.message}</p>
+        ) : (
+          <p className="focus-stage-label">
+            正在茁壮成长 · 阶段 {displayedTreeStage + 1} / 5
+          </p>
+        )}
       </section>
 
       <div className="focus-actions">
