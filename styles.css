@@ -1107,9 +1107,10 @@ main {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 16px;
+  gap: 12px;
   width: min(760px, 100%);
   justify-self: center;
+  transform: translateY(-clamp(8px, 3vh, 24px));
 }
 
 .focus-finished-label {
@@ -1125,22 +1126,19 @@ main {
 }
 
 .focus-tree {
-  position: relative;
   display: grid;
-  place-items: center;
-  width: min(200px, 58vw);
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
+  place-items: end center;
+  width: min(75vw, 300px);
+  max-width: 100%;
 }
 
 .focus-tree img {
-  position: absolute;
-  width: 75%;
-  height: 75%;
-  border-radius: 50%;
-  object-fit: cover;
+  grid-area: 1 / 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: bottom center;
   opacity: 0;
   transition: opacity 0.5s ease;
 }
