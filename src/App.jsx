@@ -1296,12 +1296,6 @@ function CurrentPanel({
             <span>{timerText}</span>
           </div>
           <div className="timer-controls">
-            <button className="timer-start-button" type="button" onClick={timerRunning ? stopTimer : startTimer}>
-              {timerRunning ? "暂停专注 Ⅱ" : "开始专注 ▶"}
-            </button>
-            <button type="button" onClick={resetTimer}>
-              ↺
-            </button>
             <label>
               <span>分钟</span>
               <input
@@ -1312,6 +1306,14 @@ function CurrentPanel({
                 onChange={(event) => setTimerMinutes(Number(event.target.value) || initialTimerMinutes)}
               />
             </label>
+            <div className="timer-action-row">
+              <button className="timer-start-button" type="button" onClick={timerRunning ? stopTimer : startTimer}>
+                {timerRunning ? "暂停专注 Ⅱ" : "开始专注 ▶"}
+              </button>
+              <button className="timer-reset-button" type="button" onClick={resetTimer}>
+                ↺
+              </button>
+            </div>
           </div>
           <button className="task-skip-complete" type="button" onClick={completeCurrentTask}>
             完成此任务

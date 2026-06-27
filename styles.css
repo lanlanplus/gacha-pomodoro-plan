@@ -337,6 +337,7 @@ main {
 }
 
 .machine-layout.is-current {
+  min-height: auto;
   width: min(620px, 100%);
 }
 
@@ -727,31 +728,32 @@ main {
 
 .back-action {
   justify-self: start;
-  min-height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.66);
-  color: var(--ink);
-  padding: 0 14px;
+  min-height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 0;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .current-panel {
   display: grid;
-  align-content: center;
-  gap: 22px;
-  padding: 24px;
+  align-content: start;
+  gap: 16px;
+  padding: 16px 24px;
 }
 
 .machine-layout.is-current .current-panel {
-  min-height: calc(100vh - 56px);
+  min-height: auto;
 }
 
 .empty-state,
 .task-state,
 .special-state {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .task-state:not(.hidden),
@@ -791,13 +793,15 @@ main {
 }
 
 .type-chip {
-  background: var(--color-dark);
+  border: 1px solid var(--color-dark);
+  background: transparent;
+  color: var(--color-dark);
 }
 
 .timer-face {
   display: grid;
   place-items: center;
-  width: min(240px, 100%);
+  width: min(192px, 65vw);
   aspect-ratio: 1;
   justify-self: center;
   border: 10px solid #202124;
@@ -807,41 +811,55 @@ main {
 
 .timer-face span {
   font-variant-numeric: tabular-nums;
-  font-size: clamp(42px, 8vw, 60px);
+  font-size: clamp(34px, 6.4vw, 48px);
   font-weight: 900;
 }
 
 .timer-controls {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) 52px minmax(100px, 1fr);
-  gap: 10px;
-  align-items: center;
+  gap: 8px;
 }
 
 .timer-controls button {
-  height: 48px;
-  border-radius: 8px;
   font-size: 20px;
 }
 
+.timer-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .timer-controls .timer-start-button {
-  height: 64px;
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border-radius: 12px;
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-primary-text);
   padding: 0 22px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
   box-shadow: 0 12px 24px rgba(32, 33, 36, 0.16);
+}
+
+.timer-reset-button {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-card);
 }
 
 .task-skip-complete {
   justify-self: center;
   border: 0;
   background: transparent;
-  color: var(--muted);
-  padding: 6px 10px;
-  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 0;
+  font-size: 14px;
   text-decoration: underline;
   text-decoration-color: rgba(91, 87, 80, 0.35);
   text-underline-offset: 3px;
@@ -858,9 +876,16 @@ main {
   min-width: 0;
   height: 48px;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: white;
+  background: var(--color-bg-page);
+}
+
+.timer-controls label span {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .timer-controls input {
@@ -2055,6 +2080,7 @@ main {
 
 @media (max-width: 900px) {
   .app-shell {
+    align-content: start;
     grid-template-columns: 1fr;
   }
 
@@ -2062,6 +2088,7 @@ main {
     position: sticky;
     top: 0;
     z-index: 5;
+    align-self: start;
     gap: 14px;
     padding: 14px;
     border-right: 0;
@@ -2091,6 +2118,10 @@ main {
 
   .machine-layout {
     min-height: auto;
+  }
+
+  .machine-layout.is-current {
+    margin-top: 18px;
   }
 }
 
@@ -2134,14 +2165,6 @@ main {
     width: 40px;
     height: 40px;
     font-size: 20px;
-  }
-
-  .timer-controls {
-    grid-template-columns: 1fr 48px;
-  }
-
-  .timer-controls label {
-    grid-column: 1 / -1;
   }
 
   .task-row {
