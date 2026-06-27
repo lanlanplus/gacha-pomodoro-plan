@@ -1,13 +1,40 @@
 :root {
-  --bg: #f7f4ee;
-  --ink: #202124;
-  --muted: #6b6964;
-  --panel: #fffdf8;
-  --line: #ded8cc;
+  /* 主色系 */
+  --color-primary: #C85C3A;
+  --color-primary-hover: #B34E2F;
+  --color-primary-text: #ffffff;
+
+  --color-dark: #2D2520;
+  --color-accent: #3DBFA0;
+  --color-accent-bg: #EFF9F5;
+  --color-accent-border: #BAE8D8;
+
+  --color-bg-page: #FBF9F5;
+  --color-bg-card: #ffffff;
+  --color-border: #E8E3DC;
+  --color-text-primary: #2D2520;
+  --color-text-secondary: #7A6E65;
+  --color-text-muted: #AAA09A;
+
+  /* 类别色 */
+  --color-cat-work-bg: #DEEEFF;
+  --color-cat-work-text: #1855A3;
+  --color-cat-study-bg: #FEF3D5;
+  --color-cat-study-text: #9A6408;
+  --color-cat-life-bg: #E6F7EE;
+  --color-cat-life-text: #1A7A4A;
+  --color-cat-health-bg: #FFE8E8;
+  --color-cat-health-text: #B03030;
+
+  --bg: var(--color-bg-page);
+  --ink: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --panel: var(--color-bg-card);
+  --line: var(--color-border);
   --red: #ef5b53;
-  --teal: #1f9c95;
+  --teal: var(--color-accent);
   --blue: #4d7fd6;
-  --green: #64a84f;
+  --green: var(--color-accent);
   --yellow: #f3b43f;
   --pink: #d95f92;
   --shadow: 0 20px 60px rgba(45, 40, 31, 0.14);
@@ -23,7 +50,7 @@ body {
   background:
     linear-gradient(135deg, rgba(31, 156, 149, 0.14), transparent 34%),
     linear-gradient(315deg, rgba(239, 91, 83, 0.14), transparent 38%),
-    var(--bg);
+    var(--color-bg-page);
   color: var(--ink);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -253,7 +280,7 @@ button {
 .nav-tab.active {
   border-color: transparent;
   background: transparent;
-  color: #202124;
+  color: var(--color-text-primary);
   box-shadow: none;
   animation: nav-tab-pop 0.42s cubic-bezier(0.2, 1.24, 0.28, 1);
 }
@@ -277,7 +304,7 @@ button {
   margin-top: 12px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e9e2d5;
+  background: var(--color-border);
 }
 
 .meter-fill {
@@ -393,12 +420,12 @@ main {
 .today-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--teal);
+  background: var(--color-accent);
   transition: width 0.35s ease;
 }
 
 .today-rhythm.is-complete .today-progress-fill {
-  background: var(--green);
+  background: var(--color-accent);
 }
 
 .new-week-action {
@@ -666,8 +693,8 @@ main {
   min-height: 48px;
   border: 0;
   border-radius: 8px;
-  background: #202124;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
   font-weight: 800;
   padding: 0 22px;
   box-shadow: 0 14px 28px rgba(32, 33, 36, 0.16);
@@ -764,7 +791,7 @@ main {
 }
 
 .type-chip {
-  background: #202124;
+  background: var(--color-dark);
 }
 
 .timer-face {
@@ -799,9 +826,9 @@ main {
 
 .timer-controls .timer-start-button {
   height: 64px;
-  border-color: #202124;
-  background: #202124;
-  color: white;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
   padding: 0 22px;
   font-size: 18px;
   font-weight: 900;
@@ -1058,7 +1085,7 @@ main {
   padding: clamp(24px, 5vw, 56px);
   background:
     radial-gradient(circle at 50% 42%, rgba(31, 156, 149, 0.06), transparent 34%),
-    var(--bg);
+    var(--color-bg-page);
 }
 
 .focus-header {
@@ -1116,7 +1143,7 @@ main {
 .focus-finished-label {
   max-width: min(520px, 88vw);
   margin: 0;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: clamp(16px, 2.5vw, 18px);
   font-weight: 600;
   line-height: 1.5;
@@ -1149,7 +1176,7 @@ main {
 
 .focus-stage-label {
   margin: 0;
-  color: #999;
+  color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 1.5;
   text-align: center;
@@ -1175,8 +1202,8 @@ main {
 .focus-primary-action,
 .focus-complete-action {
   border: 0;
-  background: var(--ink);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
   box-shadow: 0 14px 28px rgba(32, 33, 36, 0.14);
 }
 
@@ -1207,7 +1234,7 @@ main {
 
 .focus-complete-action {
   min-width: min(320px, 86vw);
-  background: var(--green);
+  background: var(--color-accent);
 }
 
 .focus-abandon-action {
@@ -1233,7 +1260,7 @@ main {
 .toggle-row input {
   width: 20px;
   height: 20px;
-  accent-color: var(--teal);
+  accent-color: var(--color-accent);
 }
 
 .weekend-settings {
@@ -1279,7 +1306,7 @@ main {
   width: 17px;
   height: 17px;
   margin: 0;
-  accent-color: var(--teal);
+  accent-color: var(--color-accent);
 }
 
 .app-toast {
@@ -1518,18 +1545,18 @@ main {
 
 .choose-task-action {
   min-height: 36px;
-  border: 1px solid #202124;
+  border: 1px solid var(--color-dark);
   border-radius: 8px;
   background: #fffdf8;
-  color: #202124;
+  color: var(--color-text-primary);
   padding: 0 12px;
   font-size: 14px;
   font-weight: 800;
 }
 
 .choose-task-action:hover {
-  background: #202124;
-  color: white;
+  background: var(--color-dark);
+  color: var(--color-primary-text);
 }
 
 .progress-grid {
@@ -1636,8 +1663,8 @@ main {
   border-radius: 50%;
   background: conic-gradient(
     from -90deg,
-    var(--teal) 0 var(--completion),
-    #e9e2d5 var(--completion) 360deg
+    var(--color-accent) 0 var(--completion),
+    var(--color-border) var(--completion) 360deg
   );
   box-shadow:
     0 18px 42px rgba(31, 156, 149, 0.16),
@@ -1768,7 +1795,7 @@ main {
 }
 
 .summary-count {
-  color: var(--teal);
+  color: var(--color-accent);
 }
 
 @keyframes knob-turn {
