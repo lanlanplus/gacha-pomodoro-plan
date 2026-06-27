@@ -1217,7 +1217,7 @@ function FocusMode({
             <img
               key={stage}
               className={index === displayedTreeStage ? "is-visible" : ""}
-              src={`/images/tree/tree-${stage}.png?v=2`}
+              src={`/images/tree/tree-${stage}.png?v=3`}
               alt=""
               aria-hidden="true"
             />
