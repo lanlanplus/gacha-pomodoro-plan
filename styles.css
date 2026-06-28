@@ -1100,29 +1100,27 @@ main {
 }
 
 .quantity-stepper {
-  display: grid;
-  grid-template-columns: 48px minmax(64px, 1fr) 48px;
-  min-height: 48px;
+  display: flex;
+  align-items: center;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-card);
 }
 
 .quantity-stepper button {
-  border: 0;
-  background: rgba(247, 244, 238, 0.82);
-  color: var(--ink);
-  font-size: 22px;
-  font-weight: 800;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.quantity-stepper button:first-child {
-  border-right: 1px solid var(--line);
-}
-
-.quantity-stepper button:last-child {
-  border-left: 1px solid var(--line);
+.quantity-stepper button:hover:not(:disabled) {
+  background: #F0EDE6;
 }
 
 .quantity-stepper button:disabled {
@@ -1131,13 +1129,19 @@ main {
 }
 
 .quantity-stepper input {
-  width: 100%;
+  flex: 1;
   min-width: 0;
+  height: 44px;
   border: 0;
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
   border-radius: 0;
   padding: 0 6px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
   text-align: center;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   appearance: textfield;
 }
@@ -1333,6 +1337,48 @@ main {
   width: 20px;
   height: 20px;
   accent-color: var(--color-accent);
+}
+
+.daily-exclusive-checkbox {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.daily-exclusive-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.daily-exclusive-checkbox + .daily-exclusive-checkbox-label::before {
+  content: "";
+  display: inline-block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-card);
+  vertical-align: middle;
+  transition: all 0.15s ease;
+}
+
+.daily-exclusive-checkbox:checked + .daily-exclusive-checkbox-label::before {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 5l3.5 3.5L11 1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 10px;
+}
+
+.daily-exclusive-checkbox:focus-visible + .daily-exclusive-checkbox-label::before {
+  outline: 2px solid rgba(200, 92, 58, 0.28);
+  outline-offset: 2px;
 }
 
 .weekend-settings {
@@ -1633,10 +1679,11 @@ main {
 
 .progress-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .progress-card {
-  padding: 18px;
+  padding: 12px 16px;
   box-shadow: none;
 }
 
@@ -1661,7 +1708,14 @@ main {
 }
 
 .progress-card .meter-track {
+  height: 6px;
   margin: 0;
+  border-radius: 6px;
+}
+
+.progress-card .meter-fill {
+  height: 6px;
+  border-radius: 6px;
 }
 
 .category-done-text {

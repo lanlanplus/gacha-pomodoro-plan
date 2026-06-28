@@ -915,14 +915,18 @@ export default function App() {
               </div>
             </div>
 
-            <label className="toggle-row full">
+            <div className="toggle-row full">
               <input
+                id="dailyExclusive"
+                className="daily-exclusive-checkbox"
                 type="checkbox"
                 checked={taskDailyExclusive}
                 onChange={(event) => setTaskDailyExclusive(event.target.checked)}
               />
-              <span>同名任务当天只抽一次</span>
-            </label>
+              <label htmlFor="dailyExclusive" className="daily-exclusive-checkbox-label">
+                同名任务当天只抽一次
+              </label>
+            </div>
 
             <button className="primary-action full" type="submit">
               加入摇蛋机
