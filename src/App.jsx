@@ -136,6 +136,10 @@ function categoryById(id) {
   return categories.find((category) => category.id === id) || categories[0];
 }
 
+function categoryTagClass(id) {
+  return `cat-${id}`;
+}
+
 function pick(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -510,16 +514,17 @@ export default function App() {
     event.preventDefault();
     const cleanName = taskName.trim();
     const count = Math.min(20, Math.max(1, Number(taskCount) || 1));
+    const selectedCategory = document.getElementById("categoryValue")?.value || taskCategory;
     if (!cleanName) return;
 
     setState((currentState) => ({
       ...currentState,
       tasks: [
         ...currentState.tasks,
-        ...Array.from({ length: count }, () => makeTask(cleanName, taskCategory, taskDailyExclusive)),
+        ...Array.from({ length: count }, () => makeTask(cleanName, selectedCategory, taskDailyExclusive)),
       ],
     }));
-    setTaskHistory((history) => recordTaskHistory(history, cleanName, taskCategory));
+    setTaskHistory((history) => recordTaskHistory(history, cleanName, selectedCategory));
     setTaskName("");
     setTaskCount(1);
     setTaskDailyExclusive(false);
@@ -857,13 +862,22 @@ export default function App() {
 
             <label className="field">
               <span>类别</span>
-              <select value={taskCategory} onChange={(event) => setTaskCategory(event.target.value)}>
+              <div className="category-tags" id="categoryTags">
                 {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`cat-tag ${categoryTagClass(category.id)} ${
+                      taskCategory === category.id ? "selected" : ""
+                    }`}
+                    data-value={category.id}
+                    onClick={() => setTaskCategory(category.id)}
+                  >
                     {category.name}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
+              <input type="hidden" id="categoryValue" name="category" value={taskCategory} />
             </label>
 
             <div className="field">

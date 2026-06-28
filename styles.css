@@ -1002,6 +1002,53 @@ main {
   outline: 0;
 }
 
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cat-tag {
+  padding: 6px 16px;
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cat-work {
+  background: #DEEEFF;
+  color: #1855A3;
+}
+
+.cat-study {
+  background: #FEF3D5;
+  color: #9A6408;
+}
+
+.cat-life {
+  background: #E6F7EE;
+  color: #1A7A4A;
+}
+
+.cat-health {
+  background: #FFE8E8;
+  color: #B03030;
+}
+
+.cat-creative {
+  background: #F3E8FF;
+  color: #6B21A8;
+}
+
+.cat-tag.selected {
+  border-color: currentColor;
+  font-weight: 600;
+}
+
 .task-name-field {
   position: relative;
 }
