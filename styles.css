@@ -1664,6 +1664,11 @@ main {
   margin: 0;
 }
 
+.category-done-text {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
 .summary-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

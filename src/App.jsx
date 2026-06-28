@@ -1481,6 +1481,11 @@ function CategoryProgress({ tasks, completed }) {
   return (
     <div className="progress-grid">
       {activeCategories.map((category) => {
+        const subText =
+          category.remaining === 0
+            ? "全部搞定 🎉"
+            : `${category.done} 完成 / ${category.remaining} 剩余`;
+
         return (
           <article className="progress-card" key={category.id}>
             <div className="progress-top">
@@ -1496,8 +1501,8 @@ function CategoryProgress({ tasks, completed }) {
                 style={{ width: `${category.percent}%`, background: category.color }}
               />
             </div>
-            <p className="task-meta">
-              {category.done} 完成 / {category.remaining} 剩余
+            <p className={`task-meta category-progress-meta ${category.remaining === 0 ? "category-done-text" : ""}`}>
+              {subText}
             </p>
           </article>
         );
