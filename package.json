@@ -10,9 +10,10 @@
     "test": "node --test src/*.test.js"
   },
   "dependencies": {
-    "vite": "^6.0.7",
+    "@supabase/supabase-js": "^2.108.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7"
   },
   "devDependencies": {}
 }

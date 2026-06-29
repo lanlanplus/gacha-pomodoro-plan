@@ -22,6 +22,7 @@ import {
   groupCompletedTasks,
 } from "./weeklySummary.js";
 import { groupTaskPool } from "./taskGroups.js";
+import { supabase } from "./utils/supabase.js";
 
 const categories = [
   { id: "work", name: "工作", color: "#4d7fd6" },
@@ -41,6 +42,7 @@ const specials = [
 const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
+const appStateTable = "user_app_states";
 const { initialTimerMinutes, treeStageSeconds } = runtimeConfig;
 const defaultDailyTarget = 3;
 const minDailyTarget = 1;
@@ -203,6 +205,14 @@ export default function App() {
   ];
   const [view, setView] = useState("machine");
   const [state, setState] = useState(loadState);
+  const [session, setSession] = useState(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState("sign-in");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [remoteLoadedUserId, setRemoteLoadedUserId] = useState(null);
   const [currentDate, setCurrentDate] = useState(todayKey);
   const [weekendCategories, setWeekendCategories] = useState(loadWeekendCategories);
   const [showRhythmTip, setShowRhythmTip] = useState(false);
@@ -239,10 +249,108 @@ export default function App() {
   const wakeLockControllerRef = useRef(null);
   const timerRemainingRef = useRef(initialTimerMinutes * 60);
   const hasDistractedRef = useRef(false);
+  const stateRef = useRef(state);
+  const weekendCategoriesRef = useRef(weekendCategories);
+  const taskHistoryRef = useRef(taskHistory);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
+    stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      setSession(data.session);
+      setRemoteReady(!data.session);
+      setAuthLoading(false);
+    }
+
+    loadSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setRemoteReady(!nextSession);
+      setRemoteLoadedUserId(null);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || remoteLoadedUserId === userId) return undefined;
+
+    let active = true;
+    setRemoteReady(false);
+
+    async function loadRemoteState() {
+      const { data, error } = await supabase
+        .from(appStateTable)
+        .select("app_state, weekend_categories, task_history")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (error) {
+        setNotice(`同步读取失败：${error.message}`);
+        setRemoteReady(true);
+        setRemoteLoadedUserId(userId);
+        return;
+      }
+
+      if (data?.app_state) setState(normalizeState(data.app_state));
+      if (data?.weekend_categories) setWeekendCategories(normalizeWeekendCategories(data.weekend_categories));
+      if (data?.task_history) setTaskHistory(normalizeTaskHistory(data.task_history));
+
+      if (!data) {
+        const { error: insertError } = await supabase.from(appStateTable).insert({
+          user_id: userId,
+          app_state: stateRef.current,
+          weekend_categories: weekendCategoriesRef.current,
+          task_history: taskHistoryRef.current,
+        });
+        if (insertError) setNotice(`初始化云端状态失败：${insertError.message}`);
+      }
+
+      setRemoteReady(true);
+      setRemoteLoadedUserId(userId);
+    }
+
+    loadRemoteState();
+
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id, remoteLoadedUserId]);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || !remoteReady || remoteLoadedUserId !== userId) return undefined;
+
+    const timeout = window.setTimeout(async () => {
+      const { error } = await supabase.from(appStateTable).upsert({
+        user_id: userId,
+        app_state: state,
+        weekend_categories: weekendCategories,
+        task_history: taskHistory,
+      });
+
+      if (error) setNotice(`云端保存失败：${error.message}`);
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [session?.user?.id, remoteReady, remoteLoadedUserId, state, weekendCategories, taskHistory]);
 
   useEffect(() => {
     const controller = createWakeLockController();
@@ -255,10 +363,12 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem(weekendCategoriesKey, JSON.stringify(weekendCategories));
+    weekendCategoriesRef.current = weekendCategories;
   }, [weekendCategories]);
 
   useEffect(() => {
     localStorage.setItem(taskHistoryKey, JSON.stringify(taskHistory));
+    taskHistoryRef.current = taskHistory;
   }, [taskHistory]);
 
   useEffect(() => {
@@ -355,6 +465,36 @@ export default function App() {
     hasDistractedRef.current = false;
     setHasDistracted(false);
     setTreeGrowthStartRemaining(safeMinutes * 60);
+  }
+
+  async function submitAuth(event) {
+    event.preventDefault();
+    const email = authEmail.trim();
+    if (!email || authPassword.length < 6) {
+      setNotice("请输入邮箱和至少 6 位密码");
+      return;
+    }
+
+    setAuthSubmitting(true);
+    const action =
+      authMode === "sign-up"
+        ? supabase.auth.signUp({ email, password: authPassword })
+        : supabase.auth.signInWithPassword({ email, password: authPassword });
+    const { error } = await action;
+    setAuthSubmitting(false);
+
+    if (error) {
+      setNotice(error.message);
+      return;
+    }
+
+    setAuthPassword("");
+    setNotice(authMode === "sign-up" ? "注册成功，请按邮箱验证设置继续登录" : "登录成功，正在同步");
+  }
+
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) setNotice(error.message);
   }
 
   function stopTimer() {
@@ -698,6 +838,21 @@ export default function App() {
             {weekStats.done} / {weekStats.total} 颗球
           </p>
         </div>
+
+        <AuthPanel
+          session={session}
+          email={authEmail}
+          password={authPassword}
+          mode={authMode}
+          loading={authLoading}
+          submitting={authSubmitting}
+          remoteReady={remoteReady}
+          onEmailChange={setAuthEmail}
+          onPasswordChange={setAuthPassword}
+          onModeChange={setAuthMode}
+          onSubmit={submitAuth}
+          onSignOut={signOut}
+        />
       </aside>
 
       <main>
@@ -1163,6 +1318,93 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function normalizeWeekendCategories(value) {
+  const validIds = categories.map((category) => category.id);
+  const selected = Array.isArray(value) ? value.filter((id) => validIds.includes(id)) : validIds;
+  return selected.length ? selected : [];
+}
+
+function AuthPanel({
+  session,
+  email,
+  password,
+  mode,
+  loading,
+  submitting,
+  remoteReady,
+  onEmailChange,
+  onPasswordChange,
+  onModeChange,
+  onSubmit,
+  onSignOut,
+}) {
+  const userEmail = session?.user?.email;
+
+  if (loading) {
+    return (
+      <section className="auth-panel" aria-label="账号同步">
+        <strong>同步状态</strong>
+        <span>正在检查登录状态…</span>
+      </section>
+    );
+  }
+
+  if (userEmail) {
+    return (
+      <section className="auth-panel" aria-label="账号同步">
+        <div>
+          <strong>{userEmail}</strong>
+          <span>{remoteReady ? "云端同步已开启" : "正在同步云端状态…"}</span>
+        </div>
+        <button className="ghost-action small" type="button" onClick={onSignOut}>
+          退出登录
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <form className="auth-panel" onSubmit={onSubmit} aria-label="账号登录注册">
+      <div className="auth-mode-switch" role="tablist" aria-label="账号模式">
+        <button
+          type="button"
+          className={mode === "sign-in" ? "active" : ""}
+          onClick={() => onModeChange("sign-in")}
+        >
+          登录
+        </button>
+        <button
+          type="button"
+          className={mode === "sign-up" ? "active" : ""}
+          onClick={() => onModeChange("sign-up")}
+        >
+          注册
+        </button>
+      </div>
+      <input
+        type="email"
+        autoComplete="email"
+        placeholder="邮箱"
+        value={email}
+        onChange={(event) => onEmailChange(event.target.value)}
+        required
+      />
+      <input
+        type="password"
+        autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
+        placeholder="密码"
+        minLength="6"
+        value={password}
+        onChange={(event) => onPasswordChange(event.target.value)}
+        required
+      />
+      <button className="primary-action auth-submit" type="submit" disabled={submitting}>
+        {submitting ? "处理中…" : mode === "sign-up" ? "创建账号" : "登录同步"}
+      </button>
+    </form>
   );
 }
 
