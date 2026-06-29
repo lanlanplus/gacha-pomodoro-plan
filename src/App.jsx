@@ -817,13 +817,16 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar" aria-label="主导航">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">
-            ●
+          <div className="brand-title">
+            <div className="brand-mark" aria-hidden="true">
+              ●
+            </div>
+            <div>
+              <h1>扭蛋番茄</h1>
+              <p>本周清空所有球</p>
+            </div>
           </div>
-          <div>
-            <h1>扭蛋番茄</h1>
-            <p>本周清空所有球</p>
-          </div>
+          <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
         </div>
 
         <div className="week-meter">
@@ -846,12 +849,10 @@ export default function App() {
           mode={authMode}
           loading={authLoading}
           submitting={authSubmitting}
-          remoteReady={remoteReady}
           onEmailChange={setAuthEmail}
           onPasswordChange={setAuthPassword}
           onModeChange={setAuthMode}
           onSubmit={submitAuth}
-          onSignOut={signOut}
         />
       </aside>
 
@@ -1334,12 +1335,10 @@ function AuthPanel({
   mode,
   loading,
   submitting,
-  remoteReady,
   onEmailChange,
   onPasswordChange,
   onModeChange,
   onSubmit,
-  onSignOut,
 }) {
   const userEmail = session?.user?.email;
 
@@ -1353,17 +1352,7 @@ function AuthPanel({
   }
 
   if (userEmail) {
-    return (
-      <section className="auth-panel" aria-label="账号同步">
-        <div>
-          <strong>{userEmail}</strong>
-          <span>{remoteReady ? "云端同步已开启" : "正在同步云端状态…"}</span>
-        </div>
-        <button className="ghost-action small" type="button" onClick={onSignOut}>
-          退出登录
-        </button>
-      </section>
-    );
+    return null;
   }
 
   return (
@@ -1405,6 +1394,49 @@ function AuthPanel({
         {submitting ? "处理中…" : mode === "sign-up" ? "创建账号" : "登录同步"}
       </button>
     </form>
+  );
+}
+
+function AccountMenu({ session, remoteReady, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const userEmail = session?.user?.email;
+  const avatarLetter = userEmail?.trim().charAt(0).toUpperCase() || "L";
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function closeDropdown() {
+      setOpen(false);
+    }
+
+    document.addEventListener("click", closeDropdown);
+    return () => document.removeEventListener("click", closeDropdown);
+  }, [open]);
+
+  if (!userEmail) return null;
+
+  return (
+    <div className="account-wrapper" onClick={(event) => event.stopPropagation()}>
+      <button
+        className="account-avatar-btn"
+        id="accountBtn"
+        type="button"
+        aria-label="账户"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="avatar-letter" id="avatarLetter">{avatarLetter}</span>
+      </button>
+
+      <div className="account-dropdown" id="accountDropdown" style={{ display: open ? "block" : "none" }}>
+        <div className="account-email" id="accountEmail">{userEmail}</div>
+        <div className="account-sync-status">{remoteReady ? "☁️ 云端同步已开启" : "正在同步云端状态…"}</div>
+        <hr className="account-divider" />
+        <button className="account-logout-btn" id="logoutBtn" type="button" onClick={onSignOut}>
+          退出登录
+        </button>
+      </div>
+    </div>
   );
 }
 

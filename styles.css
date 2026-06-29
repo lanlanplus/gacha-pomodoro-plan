@@ -88,12 +88,21 @@ button {
 .brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   gap: 14px;
 }
 
 .brand-mark {
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
   width: 46px;
   height: 46px;
   border-radius: 50%;
@@ -115,6 +124,85 @@ button {
 .brand h1 {
   font-size: 22px;
   line-height: 1.1;
+}
+
+.account-wrapper {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.account-avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+}
+
+.account-avatar-btn:focus-visible {
+  outline: 2px solid rgba(200, 92, 58, 0.42);
+  outline-offset: 3px;
+}
+
+.avatar-letter {
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  width: 220px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.account-email {
+  margin-bottom: 4px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.account-sync-status {
+  margin-bottom: 10px;
+  color: var(--color-accent);
+  font-size: 12px;
+}
+
+.account-divider {
+  margin: 0 0 10px;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.account-logout-btn {
+  width: 100%;
+  padding: 8px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.account-logout-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-page);
+  color: var(--color-primary);
 }
 
 .brand p,
