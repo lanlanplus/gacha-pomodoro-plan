@@ -1,5 +1,94 @@
 const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
+export function getIsoWeek(dateInput = new Date()) {
+  const date = new Date(dateInput);
+  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = localDate.getDay() || 7;
+  const start = new Date(localDate);
+  start.setDate(localDate.getDate() - day + 1);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  const thursday = new Date(start);
+  thursday.setDate(start.getDate() + 3);
+  const yearStart = new Date(thursday.getFullYear(), 0, 1);
+  const weekNumber = Math.ceil(
+    ((thursday - yearStart) / 86400000 + yearStart.getDay() + 1) / 7,
+  );
+  const key = [
+    start.getFullYear(),
+    String(start.getMonth() + 1).padStart(2, "0"),
+    String(start.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  return { key, weekNumber, start, end };
+}
+
+export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
+  const preciseWeeks = new Map();
+  logs.forEach((log) => {
+    const week = getIsoWeek(log.completed_at || log.completedAt);
+    const item = preciseWeeks.get(week.key) || {
+      ...week,
+      precise: true,
+      completed: 0,
+      categoryCounts: {},
+      logs: [],
+    };
+    item.completed += 1;
+    item.categoryCounts[log.category] = (item.categoryCounts[log.category] || 0) + 1;
+    item.logs.push(log);
+    preciseWeeks.set(week.key, item);
+  });
+
+  const legacyWeeks = new Map();
+  taskHistory.forEach((item) => {
+    if (!item.lastUsedAt) return;
+    const week = getIsoWeek(item.lastUsedAt);
+    if (!preciseWeeks.has(week.key)) {
+      legacyWeeks.set(week.key, { ...week, precise: false });
+    }
+  });
+
+  const precise = [...preciseWeeks.values()].sort((a, b) => a.start - b.start);
+  let historicalHigh = -1;
+  precise.forEach((week, index) => {
+    const ended = week.end < now;
+    week.best = ended && index > 0 && week.completed >= historicalHigh;
+    week.tiedBest = week.best && week.completed === historicalHigh;
+    historicalHigh = Math.max(historicalHigh, week.completed);
+    week.topCategory = Object.entries(week.categoryCounts).sort(
+      (a, b) => b[1] - a[1],
+    )[0]?.[0] || null;
+  });
+
+  return [...precise, ...legacyWeeks.values()].sort((a, b) => b.start - a.start);
+}
+
+export function overlayCurrentWeekState(history, completed, now = new Date()) {
+  const currentWeek = getIsoWeek(now);
+  const existing = history.find((week) => week.key === currentWeek.key);
+  if (!existing && !completed.length) return history;
+
+  const categoryCounts = completed.reduce((counts, task) => {
+    counts[task.category] = (counts[task.category] || 0) + 1;
+    return counts;
+  }, {});
+  const current = {
+    ...(existing || currentWeek),
+    precise: true,
+    current: true,
+    completed: completed.length,
+    categoryCounts,
+    topCategory: Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null,
+    best: false,
+    tiedBest: false,
+  };
+
+  return [current, ...history.filter((week) => week.key !== currentWeek.key)];
+}
+
 export function buildCategoryStats(categories, tasks, completed) {
   return categories.map((category) => {
     const remaining = tasks.filter((task) => task.category === category.id).length;

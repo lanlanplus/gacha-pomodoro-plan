@@ -5,8 +5,11 @@ import {
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyHighlights,
+  buildWeeklyHistory,
   buildWeeklyMessage,
+  getIsoWeek,
   groupCompletedTasks,
+  overlayCurrentWeekState,
 } from "./weeklySummary.js";
 
 const categories = [
@@ -117,4 +120,70 @@ test("groups same-name records and keeps accurate accumulated minutes", () => {
   assert.equal(grouped[0].count, 2);
   assert.equal(grouped[0].minutes, 50);
   assert.equal(grouped[0].dateLabel, "周一至周四完成");
+});
+
+test("groups completion logs by local ISO week and keeps legacy weeks imprecise", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "work", completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "work", completed_at: "2026-06-21T23:00:00+08:00" },
+      { category: "health", completed_at: "2026-06-22T10:00:00+08:00" },
+    ],
+    [{ lastUsedAt: "2026-06-08T10:00:00+08:00" }],
+    new Date("2026-07-01T10:00:00+08:00"),
+  );
+
+  assert.deepEqual(
+    history.map(({ key, precise, completed }) => ({ key, precise, completed })),
+    [
+      { key: "2026-06-22", precise: true, completed: 1 },
+      { key: "2026-06-15", precise: true, completed: 2 },
+      { key: "2026-06-08", precise: false, completed: undefined },
+    ],
+  );
+  assert.equal(history[0].best, false);
+  assert.equal(history[1].best, false);
+});
+
+test("awards ended weeks from the second precise week and includes ties", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "work", completed_at: "2026-06-01T10:00:00+08:00" },
+      { category: "work", completed_at: "2026-06-08T10:00:00+08:00" },
+      { category: "health", completed_at: "2026-06-15T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-07-01T10:00:00+08:00"),
+  );
+  const chronological = [...history].reverse();
+  assert.deepEqual(chronological.map((week) => week.best), [false, true, true]);
+  assert.equal(chronological[1].tiedBest, true);
+  assert.equal(getIsoWeek("2026-01-01T10:00:00+08:00").weekNumber, 1);
+});
+
+test("uses the current task pool for the current week without changing past weeks", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "工作", completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "健康", completed_at: "2026-06-22T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+  const displayed = overlayCurrentWeekState(
+    history,
+    [
+      { category: "study" },
+      { category: "study" },
+      { category: "life" },
+    ],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+
+  assert.equal(displayed[0].key, "2026-06-22");
+  assert.equal(displayed[0].completed, 3);
+  assert.equal(displayed[0].topCategory, "study");
+  assert.deepEqual(displayed[0].categoryCounts, { study: 2, life: 1 });
+  assert.equal(displayed[1].key, "2026-06-15");
+  assert.equal(displayed[1].completed, 1);
 });

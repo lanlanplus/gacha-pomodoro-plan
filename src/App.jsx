@@ -18,8 +18,11 @@ import {
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyHighlights,
+  buildWeeklyHistory,
   buildWeeklyMessage,
+  getIsoWeek,
   groupCompletedTasks,
+  overlayCurrentWeekState,
 } from "./weeklySummary.js";
 import { groupTaskPool } from "./taskGroups.js";
 import { supabase } from "./utils/supabase.js";
@@ -43,6 +46,7 @@ const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
 const appStateTable = "user_app_states";
+const completionLogTable = "task_completion_log";
 const { initialTimerMinutes, treeStageSeconds } = runtimeConfig;
 const defaultDailyTarget = 3;
 const minDailyTarget = 1;
@@ -227,6 +231,9 @@ export default function App() {
   const [taskCount, setTaskCount] = useState(1);
   const [taskDailyExclusive, setTaskDailyExclusive] = useState(false);
   const [taskHistory, setTaskHistory] = useState(loadTaskHistory);
+  const [taskCompletionLogs, setTaskCompletionLogs] = useState([]);
+  const [summaryMode, setSummaryMode] = useState("current");
+  const [selectedHistoryWeekKey, setSelectedHistoryWeekKey] = useState(null);
   const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
   const [timerMinutes, setTimerMinutes] = useState(initialTimerMinutes);
   const [timerRemaining, setTimerRemaining] = useState(initialTimerMinutes * 60);
@@ -277,6 +284,7 @@ export default function App() {
       setSession(nextSession);
       setRemoteReady(!nextSession);
       setRemoteLoadedUserId(null);
+      setTaskCompletionLogs([]);
       setAuthLoading(false);
     });
 
@@ -312,6 +320,17 @@ export default function App() {
       if (data?.app_state) setState(normalizeState(data.app_state));
       if (data?.weekend_categories) setWeekendCategories(normalizeWeekendCategories(data.weekend_categories));
       if (data?.task_history) setTaskHistory(normalizeTaskHistory(data.task_history));
+
+      const { data: completionLogs, error: completionLogsError } = await supabase
+        .from(completionLogTable)
+        .select("id, task_name, category, completed_at")
+        .eq("user_id", userId)
+        .order("completed_at", { ascending: true });
+      if (completionLogsError) {
+        setNotice(`周历史读取失败：${completionLogsError.message}`);
+      } else {
+        setTaskCompletionLogs(completionLogs || []);
+      }
 
       if (!data) {
         const { error: insertError } = await supabase.from(appStateTable).insert({
@@ -443,6 +462,21 @@ export default function App() {
   const weeklyMessage = useMemo(
     () => buildWeeklyMessage(weekStats.percent, categoryStats),
     [weekStats.percent, categoryStats],
+  );
+  const weeklyHistory = useMemo(
+    () => buildWeeklyHistory(taskCompletionLogs, taskHistory),
+    [taskCompletionLogs, taskHistory],
+  );
+  const displayedWeeklyHistory = useMemo(
+    () => overlayCurrentWeekState(weeklyHistory, state.completed),
+    [weeklyHistory, state.completed],
+  );
+  const preciseWeeks = weeklyHistory.filter((week) => week.precise);
+  const activeWeekCount = preciseWeeks.length;
+  const trophyCount = preciseWeeks.filter((week) => week.best).length;
+  const currentWeekKey = getIsoWeek().key;
+  const selectedHistoryWeek = displayedWeeklyHistory.find(
+    (week) => week.key === selectedHistoryWeekKey,
   );
   const completedToday = useMemo(
     () =>
@@ -671,6 +705,27 @@ export default function App() {
     setShowTaskSuggestions(false);
   }
 
+  async function writeCompletionLog(entry) {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const row = {
+      user_id: userId,
+      task_name: entry.taskName,
+      category: categoryById(entry.category).name,
+      completed_at: entry.completedAt,
+    };
+    const { data, error } = await supabase
+      .from(completionLogTable)
+      .insert(row)
+      .select("id, task_name, category, completed_at")
+      .single();
+    if (error) {
+      setNotice(`周历史记录失败：${error.message}`);
+      return;
+    }
+    setTaskCompletionLogs((logs) => [...logs, data]);
+  }
+
   function completeCurrentTask() {
     const current = state.current;
     if (!current || current.kind !== "task") return;
@@ -679,6 +734,7 @@ export default function App() {
     const elapsed = Math.max(elapsedBeforeStart, timerMinutes * 60 - timerRemaining);
     const minutes = Math.max(1, Math.round(elapsed / 60));
 
+    const completedAt = new Date().toISOString();
     setState((currentState) => ({
       ...currentState,
       tasks: currentState.tasks.filter((task) => task.id !== current.id),
@@ -689,11 +745,16 @@ export default function App() {
           name: current.name,
           category: current.category,
           minutes,
-          completedAt: new Date().toISOString(),
+          completedAt,
         },
       ],
       current: null,
     }));
+    void writeCompletionLog({
+      taskName: current.name,
+      category: current.category,
+      completedAt,
+    });
     setFocusMode(false);
     setTimerFinished(false);
     setView("machine");
@@ -1217,48 +1278,76 @@ export default function App() {
 
         <section id="summary" className={`view ${view === "summary" ? "active" : ""}`} aria-labelledby="summaryTitle">
           <div className="section-head">
-            <p className="eyebrow">WEEKLY REVIEW</p>
-            <h2 id="summaryTitle">周总结</h2>
+            <p className="eyebrow">{summaryMode === "current" ? "WEEKLY REVIEW" : "WEEKLY HISTORY"}</p>
+            <h2 id="summaryTitle">{summaryMode === "current" ? "周总结" : "历史周记录"}</h2>
           </div>
 
-          <p className="weekly-message">{weeklyMessage}</p>
-
-          <section className="summary-overview" aria-label="本周整体完成情况">
-            <div className="completion-ring-wrap">
-              <div
-                className="completion-ring"
-                style={{ "--completion": `${weekStats.percent * 3.6}deg` }}
-                role="img"
-                aria-label={`本周完成率 ${weekStats.percent}%`}
-              >
-                <div className="completion-ring-center">
-                  <strong>{weekStats.percent}%</strong>
-                  <span>本周完成</span>
-                </div>
+          {summaryMode === "current" && (
+            <>
+              <div className="summary-toolbar">
+                <span className="week-tag">第 {activeWeekCount} 周</span>
+                <button type="button" onClick={() => setSummaryMode("history")}>查看历史 ›</button>
               </div>
-              <p>
-                完成 {weekStats.done} 颗 · 剩余 {state.tasks.length} 颗
-              </p>
-            </div>
+              <p className="weekly-message">{weeklyMessage}</p>
 
-            <div className="focus-story">
-              <span aria-hidden="true">◷</span>
-              <p>{buildFocusStory(summaryTotal)}</p>
-            </div>
-          </section>
+              <WeeklyOverview
+                percent={weekStats.percent}
+                done={weekStats.done}
+                remaining={state.tasks.length}
+                focusMinutes={summaryTotal}
+              />
 
-          <section className="summary-categories" aria-labelledby="summaryCategoriesTitle">
-            <div className="section-head compact">
-              <h3 id="summaryCategoriesTitle">本周亮点</h3>
-            </div>
-            <WeeklyHighlights categoryStats={categoryStats} />
-          </section>
+              <button
+                className="history-entry-card"
+                type="button"
+                onClick={() => setSummaryMode("history")}
+              >
+                <span>
+                  已陪伴你 {activeWeekCount} 个活跃周
+                  {trophyCount > 0 && ` · ${trophyCount} 座奖杯`}
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>
 
-          <div className="section-head compact summary-history-head">
-            <h3>完成记录</h3>
-            <span>{state.completed.length} 次完成</span>
-          </div>
-          <SummaryList completed={state.completed} />
+              <section className="summary-categories" aria-labelledby="summaryCategoriesTitle">
+                <div className="section-head compact">
+                  <h3 id="summaryCategoriesTitle">本周亮点</h3>
+                </div>
+                <WeeklyHighlights categoryStats={categoryStats} />
+              </section>
+
+              <div className="section-head compact summary-history-head">
+                <h3>完成记录</h3>
+                <span>{state.completed.length} 次完成</span>
+              </div>
+              <SummaryList completed={state.completed} />
+            </>
+          )}
+
+          {summaryMode === "history" && (
+            <WeeklyHistoryList
+              history={displayedWeeklyHistory}
+              categories={categories}
+              currentWeekKey={currentWeekKey}
+              currentPercent={weekStats.percent}
+              onBack={() => setSummaryMode("current")}
+              onSelect={(week) => {
+                setSelectedHistoryWeekKey(week.key);
+                setSummaryMode("detail");
+              }}
+            />
+          )}
+
+          {summaryMode === "detail" && selectedHistoryWeek && (
+            <WeeklyHistoryDetail
+              week={selectedHistoryWeek}
+              categories={categories}
+              currentWeekKey={currentWeekKey}
+              currentStats={weekStats}
+              currentFocusMinutes={summaryTotal}
+              onBack={() => setSummaryMode("history")}
+            />
+          )}
         </section>
       </main>
 
@@ -1269,7 +1358,10 @@ export default function App() {
             data-view={id}
             className={`nav-tab ${view === id ? "active" : ""}`}
             type="button"
-            onClick={() => setView(id)}
+            onClick={() => {
+              setView(id);
+              if (id === "summary") setSummaryMode("current");
+            }}
           >
             <span aria-hidden="true">{icon}</span>
             <span>{label}</span>
@@ -1787,6 +1879,176 @@ function CategoryProgress({ tasks, completed }) {
       })}
     </div>
   );
+}
+
+function WeeklyOverview({ percent, done, remaining, focusMinutes, best = false }) {
+  const hasRate = Number.isFinite(percent);
+  return (
+    <section className="summary-overview" aria-label="本周整体完成情况">
+      <div className="completion-ring-wrap">
+        <div
+          className={`completion-ring ${best ? "is-best" : ""}`}
+          style={{ "--completion": `${(hasRate ? percent : 0) * 3.6}deg` }}
+          role="img"
+          aria-label={hasRate ? `本周完成率 ${percent}%` : "本周完成率暂无精确数据"}
+        >
+          <div className="completion-ring-center">
+            <strong>{hasRate ? `${percent}%` : "—"}</strong>
+            <span>{hasRate ? "本周完成" : "暂无完成率"}</span>
+          </div>
+        </div>
+        <p>
+          完成 {done} 颗 · 剩余 {Number.isFinite(remaining) ? `${remaining} 颗` : "暂无精确数据"}
+        </p>
+      </div>
+
+      {Number.isFinite(focusMinutes) ? (
+        <div className="focus-story">
+          <span aria-hidden="true">◷</span>
+          <p>{buildFocusStory(focusMinutes)}</p>
+        </div>
+      ) : (
+        <p className="history-detail-note">
+          历史日志精确记录完成颗数与分类；该周任务总数未留存，因此不估算完成率和剩余颗数。
+        </p>
+      )}
+    </section>
+  );
+}
+
+function WeeklyHistoryList({ history, categories, currentWeekKey, currentPercent, onBack, onSelect }) {
+  const preciseWeeks = history.filter((week) => week.precise);
+  const oldestPreciseKey = preciseWeeks[preciseWeeks.length - 1]?.key;
+  const badgeColors = ["#C85C3A", "#4D7FD6", "#F3B43F", "#D95F92", "#8A6FC2"];
+
+  return (
+    <div className="weekly-history">
+      <button className="history-back" type="button" onClick={onBack}>‹ 返回周总结</button>
+      {!history.length && <p className="weekly-highlights-empty">完成第一颗任务后，这里会出现你的活跃周。</p>}
+      {history.map((week) => {
+        const category = categories.find(
+          (item) => item.id === week.topCategory || item.name === week.topCategory,
+        );
+        const isCurrent = week.key === currentWeekKey;
+        const badgeColor = isCurrent
+          ? "var(--color-accent)"
+          : badgeColors[Math.abs(week.weekNumber) % badgeColors.length];
+        return (
+          <React.Fragment key={week.key}>
+            <button
+              className={`history-week-row ${week.precise ? "" : "is-legacy"}`}
+              type="button"
+              disabled={!week.precise}
+              onClick={() => week.precise && onSelect(week)}
+            >
+              <span className="history-week-badge" style={{ "--week-badge": badgeColor }}>
+                {week.weekNumber}
+              </span>
+              {week.precise ? (
+                <>
+                  <span className="history-week-copy">
+                    <strong>
+                      第 {week.weekNumber} 周
+                      {week.best && <span title="个人最佳周" aria-label="个人最佳周"> 🏆</span>}
+                    </strong>
+                    <span>完成 {week.completed} 颗</span>
+                    <small>{category ? `${category.name}投入最多` : "暂无分类记录"}</small>
+                  </span>
+                  <strong className={`history-week-percent ${isCurrent ? "" : "is-unavailable"}`}>
+                    {isCurrent ? `${currentPercent}%` : "—"}
+                  </strong>
+                </>
+              ) : (
+                <span className="history-week-copy history-legacy-copy">
+                  <strong>第 {week.weekNumber} 周</strong>
+                  <small>该周暂无详细记录</small>
+                </span>
+              )}
+            </button>
+            {week.key === oldestPreciseKey && history.some((item) => !item.precise) && (
+              <div className="history-data-boundary"><span>从这周开始有详细记录</span></div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeeklyHistoryDetail({
+  week,
+  categories,
+  currentWeekKey,
+  currentStats,
+  currentFocusMinutes,
+  onBack,
+}) {
+  const isCurrent = week.key === currentWeekKey;
+  const stats = categories
+    .map((category) => ({
+      ...category,
+      done: week.categoryCounts[category.name] || week.categoryCounts[category.id] || 0,
+    }))
+    .filter((category) => category.done > 0)
+    .sort((a, b) => b.done - a.done);
+
+  return (
+    <div className="weekly-history-detail">
+      <button className="history-back" type="button" onClick={onBack}>‹ 返回历史周记录</button>
+      {week.best && (
+        <div className="best-week-card">
+          <span aria-hidden="true">🏆</span>
+          <span>
+            <strong>个人最佳周！</strong>
+            <small>
+              完成颗数{week.tiedBest ? "追平了你的历史最佳纪录" : "刷新了你的历史纪录"}
+            </small>
+          </span>
+        </div>
+      )}
+      <header className="history-detail-header">
+        <span>第 {week.weekNumber} 周</span>
+        <p>{formatWeekRange(week.start, week.end)}</p>
+      </header>
+      <WeeklyOverview
+        percent={isCurrent ? currentStats.percent : null}
+        done={week.completed}
+        remaining={isCurrent ? currentStats.total - week.completed : null}
+        focusMinutes={isCurrent ? currentFocusMinutes : null}
+        best={week.best}
+      />
+      <section className="summary-categories">
+        <div className="section-head compact"><h3>分类分布</h3></div>
+        <div className="history-category-list">
+          {stats.map((category) => (
+            <div key={category.id}>
+              <span className="swatch" style={{ background: category.color }} />
+              <strong>{category.name}</strong>
+              <span>{category.done} 颗</span>
+            </div>
+          ))}
+        </div>
+      </section>
+      <div className="history-encouragement">
+        {isCurrent
+          ? "这一周还在继续，每完成一颗都算数。"
+          : week.best
+            ? "这是很闪亮的一周，把这份节奏带去下一次出发吧。"
+            : "每一个完成都有重量，谢谢这一周认真投入的你。"}
+      </div>
+    </div>
+  );
+}
+
+function formatWeekRange(start, end) {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const startText = `${startDate.getFullYear()}.${startDate.getMonth() + 1}.${startDate.getDate()}`;
+  const endText =
+    startDate.getFullYear() === endDate.getFullYear()
+      ? `${endDate.getMonth() + 1}.${endDate.getDate()}`
+      : `${endDate.getFullYear()}.${endDate.getMonth() + 1}.${endDate.getDate()}`;
+  return `${startText} – ${endText}`;
 }
 
 function WeeklyHighlights({ categoryStats }) {
