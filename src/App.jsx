@@ -1562,6 +1562,10 @@ export default function App() {
           onCategoryChange={setQuickNoteCategory}
           onClose={() => setShowQuickCapture(false)}
           onSave={saveQuickNote}
+          onOpenAll={() => {
+            setShowQuickCapture(false);
+            setShowQuickNotes(true);
+          }}
         />
       )}
 
@@ -1788,6 +1792,7 @@ function QuickCaptureSheet({
   onCategoryChange,
   onClose,
   onSave,
+  onOpenAll,
 }) {
   return (
     <SheetBackdrop onClose={onClose}>
@@ -1827,6 +1832,9 @@ function QuickCaptureSheet({
           onClick={onSave}
         >
           记下
+        </button>
+        <button className="capture-view-all" type="button" onClick={onOpenAll}>
+          查看全部随手记 →
         </button>
       </section>
     </SheetBackdrop>

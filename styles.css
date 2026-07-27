@@ -2094,6 +2094,20 @@ main {
   opacity: 0.38;
 }
 
+.capture-view-all {
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 2px 8px 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.capture-view-all:hover {
+  color: var(--color-text-secondary);
+}
+
 .pool-backdrop {
   align-items: stretch;
   padding: 0;
