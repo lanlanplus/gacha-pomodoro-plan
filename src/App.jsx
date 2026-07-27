@@ -25,6 +25,14 @@ import {
   overlayCurrentWeekState,
 } from "./weeklySummary.js";
 import { groupTaskPool } from "./taskGroups.js";
+import {
+  makeQuickNote,
+  makeSubtask,
+  normalizeQuickNotes,
+  normalizeSubtasks,
+  settleCompletedTask,
+  toggleSubtaskInState,
+} from "./subtasks.js";
 import { supabase } from "./utils/supabase.js";
 
 const categories = [
@@ -82,12 +90,13 @@ const ballAssets = {
   creative: "/assets/task-ball-pink.png",
 };
 
-function makeTask(name, category, dailyExclusive = false) {
+function makeTask(name, category, dailyExclusive = false, subtasks = []) {
   return {
     id: crypto.randomUUID(),
     name,
     category,
     dailyExclusive,
+    subtasks: normalizeSubtasks(subtasks).map((item) => ({ ...item, id: crypto.randomUUID() })),
     createdAt: new Date().toISOString(),
   };
 }
@@ -107,6 +116,7 @@ function seedState() {
     dailyTarget: defaultDailyTarget,
     specialEnabled: true,
     current: null,
+    quickNotes: [],
   };
 }
 
@@ -161,8 +171,16 @@ function normalizeState(parsed) {
     ...state,
     dailyDraws: Array.isArray(state.dailyDraws) ? state.dailyDraws : [],
     tasks: Array.isArray(state.tasks)
-      ? state.tasks.map((task) => ({ dailyExclusive: false, ...task }))
+      ? state.tasks.map((task) => ({
+          dailyExclusive: false,
+          ...task,
+          subtasks: normalizeSubtasks(task.subtasks),
+        }))
       : seeded.tasks,
+    quickNotes: normalizeQuickNotes(
+      state.quickNotes,
+      categories.map((category) => category.id),
+    ),
     dailyTarget: Math.min(
       maxDailyTarget,
       Math.max(minDailyTarget, Number(state.dailyTarget) || defaultDailyTarget),
@@ -230,6 +248,15 @@ export default function App() {
   const [taskCategory, setTaskCategory] = useState(categories[0].id);
   const [taskCount, setTaskCount] = useState(1);
   const [taskDailyExclusive, setTaskDailyExclusive] = useState(false);
+  const [draftSubtasks, setDraftSubtasks] = useState([]);
+  const [draftSubtaskText, setDraftSubtaskText] = useState("");
+  const [showDraftSubtasks, setShowDraftSubtasks] = useState(false);
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
+  const [quickNoteText, setQuickNoteText] = useState("");
+  const [quickNoteCategory, setQuickNoteCategory] = useState("");
+  const [showQuickNotes, setShowQuickNotes] = useState(false);
+  const [attachNoteId, setAttachNoteId] = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskHistory, setTaskHistory] = useState(loadTaskHistory);
   const [taskCompletionLogs, setTaskCompletionLogs] = useState([]);
   const [summaryMode, setSummaryMode] = useState("current");
@@ -259,6 +286,7 @@ export default function App() {
   const stateRef = useRef(state);
   const weekendCategoriesRef = useRef(weekendCategories);
   const taskHistoryRef = useRef(taskHistory);
+  const quickNoteInputRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
@@ -425,6 +453,12 @@ export default function App() {
     const timeout = window.setTimeout(() => setNotice(""), 4200);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    if (!showQuickCapture) return undefined;
+    const timeout = window.setTimeout(() => quickNoteInputRef.current?.focus(), 80);
+    return () => window.clearTimeout(timeout);
+  }, [showQuickCapture]);
 
   useEffect(() => {
     if (!timerRunning) return undefined;
@@ -695,13 +729,18 @@ export default function App() {
       ...currentState,
       tasks: [
         ...currentState.tasks,
-        ...Array.from({ length: count }, () => makeTask(cleanName, selectedCategory, taskDailyExclusive)),
+        ...Array.from({ length: count }, () =>
+          makeTask(cleanName, selectedCategory, taskDailyExclusive, draftSubtasks),
+        ),
       ],
     }));
     setTaskHistory((history) => recordTaskHistory(history, cleanName, selectedCategory));
     setTaskName("");
     setTaskCount(1);
     setTaskDailyExclusive(false);
+    setDraftSubtasks([]);
+    setDraftSubtaskText("");
+    setShowDraftSubtasks(false);
     setShowTaskSuggestions(false);
   }
 
@@ -735,21 +774,16 @@ export default function App() {
     const minutes = Math.max(1, Math.round(elapsed / 60));
 
     const completedAt = new Date().toISOString();
-    setState((currentState) => ({
-      ...currentState,
-      tasks: currentState.tasks.filter((task) => task.id !== current.id),
-      completed: [
-        ...currentState.completed,
-        {
-          id: current.id,
-          name: current.name,
-          category: current.category,
-          minutes,
-          completedAt,
-        },
-      ],
-      current: null,
-    }));
+    setState((currentState) => {
+      const latestCurrent = currentState.current?.id === current.id ? currentState.current : current;
+      return settleCompletedTask(currentState, latestCurrent, {
+        id: latestCurrent.id,
+        name: latestCurrent.name,
+        category: latestCurrent.category,
+        minutes,
+        completedAt,
+      });
+    });
     void writeCompletionLog({
       taskName: current.name,
       category: current.category,
@@ -771,6 +805,7 @@ export default function App() {
       dailyTarget: currentState.dailyTarget,
       specialEnabled: currentState.specialEnabled,
       current: null,
+      quickNotes: currentState.quickNotes || [],
     }));
     setShowNewWeekChoice(false);
     setIsNewWeekSetup(true);
@@ -800,6 +835,81 @@ export default function App() {
 
   function clearCompleted() {
     setState((currentState) => ({ ...currentState, completed: [] }));
+  }
+
+  function addDraftSubtask() {
+    const text = draftSubtaskText.trim();
+    if (!text) return;
+    setDraftSubtasks((items) => [...items, makeSubtask(text)]);
+    setDraftSubtaskText("");
+  }
+
+  function saveQuickNote() {
+    const text = quickNoteText.trim();
+    if (!text || !quickNoteCategory) return;
+    setState((currentState) => ({
+      ...currentState,
+      quickNotes: [makeQuickNote(text, quickNoteCategory), ...(currentState.quickNotes || [])],
+    }));
+    setQuickNoteText("");
+    setQuickNoteCategory("");
+    setShowQuickCapture(false);
+    setNotice("已记下");
+  }
+
+  function attachQuickNote(noteId, taskId) {
+    setState((currentState) => {
+      const note = (currentState.quickNotes || []).find((item) => item.id === noteId);
+      if (!note) return currentState;
+      const subtask = {
+        id: note.id,
+        text: note.text,
+        completed: false,
+        createdAt: note.createdAt,
+      };
+      return {
+        ...currentState,
+        quickNotes: currentState.quickNotes.filter((item) => item.id !== noteId),
+        tasks: currentState.tasks.map((task) =>
+          task.id === taskId
+            ? { ...task, subtasks: [...normalizeSubtasks(task.subtasks), subtask] }
+            : task,
+        ),
+        current:
+          currentState.current?.id === taskId
+            ? {
+                ...currentState.current,
+                subtasks: [...normalizeSubtasks(currentState.current.subtasks), subtask],
+              }
+            : currentState.current,
+      };
+    });
+    setAttachNoteId(null);
+  }
+
+  function addSubtaskToTask(taskId, text) {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    const subtask = makeSubtask(cleanText);
+    setState((currentState) => ({
+      ...currentState,
+      tasks: currentState.tasks.map((task) =>
+        task.id === taskId
+          ? { ...task, subtasks: [...normalizeSubtasks(task.subtasks), subtask] }
+          : task,
+      ),
+      current:
+        currentState.current?.id === taskId
+          ? {
+              ...currentState.current,
+              subtasks: [...normalizeSubtasks(currentState.current.subtasks), subtask],
+            }
+          : currentState.current,
+    }));
+  }
+
+  function toggleTaskSubtask(taskId, subtaskId) {
+    setState((currentState) => toggleSubtaskInState(currentState, taskId, subtaskId));
   }
 
   function toggleWeekendCategory(categoryId) {
@@ -870,6 +980,7 @@ export default function App() {
         onAbandon={abandonFocusTask}
         onExit={exitPausedFocus}
         onComplete={completeCurrentTask}
+        onToggleSubtask={(subtaskId) => toggleTaskSubtask(state.current.id, subtaskId)}
       />
     );
   }
@@ -887,7 +998,17 @@ export default function App() {
               <p>本周清空所有球</p>
             </div>
           </div>
-          <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
+          <div className="header-actions">
+            <button
+              className="quick-note-entry"
+              type="button"
+              aria-label="随手记一笔"
+              onClick={() => setShowQuickCapture(true)}
+            >
+              ✎
+            </button>
+            <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
+          </div>
         </div>
 
         <div className="week-meter">
@@ -1030,6 +1151,7 @@ export default function App() {
                 completeCurrentTask={completeCurrentTask}
                 claimSpecial={claimSpecial}
                 onBack={returnToMachine}
+                onEditSubtasks={() => setEditingTaskId(state.current.id)}
               />
             )}
           </div>
@@ -1076,6 +1198,57 @@ export default function App() {
                 </div>
               )}
             </label>
+
+            <div className="draft-subtasks full">
+              <button
+                className="add-subtask-link"
+                type="button"
+                onClick={() => setShowDraftSubtasks(true)}
+              >
+                + 添加子事项
+              </button>
+              {showDraftSubtasks && (
+                <div className="subtask-editor-card">
+                  {draftSubtasks.map((item) => (
+                    <SubtaskRow
+                      key={item.id}
+                      item={item}
+                      onToggle={() =>
+                        setDraftSubtasks((items) =>
+                          items.map((candidate) =>
+                            candidate.id === item.id
+                              ? { ...candidate, completed: !candidate.completed }
+                              : candidate,
+                          ),
+                        )
+                      }
+                    />
+                  ))}
+                  <div className="inline-subtask-input">
+                    <input
+                      value={draftSubtaskText}
+                      placeholder="输入子事项"
+                      maxLength="80"
+                      onChange={(event) => setDraftSubtaskText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          addDraftSubtask();
+                        }
+                      }}
+                    />
+                    <button type="button" onClick={addDraftSubtask}>添加</button>
+                  </div>
+                  <button
+                    className="choose-from-notes-link"
+                    type="button"
+                    onClick={() => setShowQuickNotes(true)}
+                  >
+                    从随手记选 · + 手动添加
+                  </button>
+                </div>
+              )}
+            </div>
 
             <label className="field">
               <span>类别</span>
@@ -1256,7 +1429,12 @@ export default function App() {
                     清理完成记录
                   </button>
                 </div>
-                <TaskQueue tasks={state.tasks} completed={state.completed} onChooseTask={chooseTaskDirectly} />
+                <TaskQueue
+                  tasks={state.tasks}
+                  completed={state.completed}
+                  onChooseTask={chooseTaskDirectly}
+                  onEditTask={setEditingTaskId}
+                />
               </div>
             )}
           </section>
@@ -1373,6 +1551,43 @@ export default function App() {
         <div className="app-toast" role="status" aria-live="polite">
           {notice}
         </div>
+      )}
+
+      {showQuickCapture && (
+        <QuickCaptureSheet
+          inputRef={quickNoteInputRef}
+          text={quickNoteText}
+          category={quickNoteCategory}
+          onTextChange={setQuickNoteText}
+          onCategoryChange={setQuickNoteCategory}
+          onClose={() => setShowQuickCapture(false)}
+          onSave={saveQuickNote}
+        />
+      )}
+
+      {showQuickNotes && (
+        <QuickNotesPool
+          notes={state.quickNotes || []}
+          tasks={state.tasks}
+          attachNoteId={attachNoteId}
+          onAttachStart={setAttachNoteId}
+          onAttach={attachQuickNote}
+          onClose={() => {
+            setShowQuickNotes(false);
+            setAttachNoteId(null);
+          }}
+        />
+      )}
+
+      {editingTaskId && (
+        <TaskSubtaskSheet
+          task={state.tasks.find((task) => task.id === editingTaskId) || state.current}
+          notes={state.quickNotes || []}
+          onAdd={(text) => addSubtaskToTask(editingTaskId, text)}
+          onToggle={(subtaskId) => toggleTaskSubtask(editingTaskId, subtaskId)}
+          onAttach={(noteId) => attachQuickNote(noteId, editingTaskId)}
+          onClose={() => setEditingTaskId(null)}
+        />
       )}
 
       {showNewWeekChoice && (
@@ -1532,6 +1747,214 @@ function AccountMenu({ session, remoteReady, onSignOut }) {
   );
 }
 
+function SubtaskRow({ item, onToggle }) {
+  return (
+    <button
+      className={`subtask-row ${item.completed ? "is-completed" : ""}`}
+      type="button"
+      role="checkbox"
+      aria-checked={item.completed}
+      aria-label={item.text}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+    >
+      <span className="subtask-checkbox" aria-hidden="true">{item.completed ? "✓" : ""}</span>
+      <span className={`subtask-text ${item.completed ? "is-done" : ""}`}>{item.text}</span>
+    </button>
+  );
+}
+
+function SheetBackdrop({ children, onClose, className = "" }) {
+  return (
+    <div
+      className={`note-sheet-backdrop ${className}`}
+      role="presentation"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function QuickCaptureSheet({
+  inputRef,
+  text,
+  category,
+  onTextChange,
+  onCategoryChange,
+  onClose,
+  onSave,
+}) {
+  return (
+    <SheetBackdrop onClose={onClose}>
+      <section className="quick-capture-sheet" role="dialog" aria-modal="true" aria-labelledby="captureTitle">
+        <div className="sheet-handle" aria-hidden="true" />
+        <label id="captureTitle" htmlFor="quickNoteInput">随手记一笔</label>
+        <textarea
+          id="quickNoteInput"
+          ref={inputRef}
+          maxLength="160"
+          rows="3"
+          value={text}
+          placeholder="想到什么，先记下来…"
+          onChange={(event) => onTextChange(event.target.value)}
+        />
+        {text.trim() && (
+          <>
+            <span className="capture-category-label">选一个分类</span>
+            <div className="capture-category-tags">
+              {categories.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`cat-tag ${categoryTagClass(item.id)} ${category === item.id ? "selected" : ""}`}
+                  onClick={() => onCategoryChange(item.id)}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <button
+          className="capture-save-action"
+          type="button"
+          disabled={!text.trim() || !category}
+          onClick={onSave}
+        >
+          记下
+        </button>
+      </section>
+    </SheetBackdrop>
+  );
+}
+
+function formatQuickNoteTime(value) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const time = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === today.toDateString()) return `今天 ${time}`;
+  if (date.toDateString() === yesterday.toDateString()) return `昨天 ${time}`;
+  return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+function QuickNotesPool({ notes, tasks, attachNoteId, onAttachStart, onAttach, onClose }) {
+  const [swipedId, setSwipedId] = useState(null);
+  const touchStart = useRef(0);
+  return (
+    <SheetBackdrop onClose={onClose} className="pool-backdrop">
+      <section className="quick-notes-pool" role="dialog" aria-modal="true" aria-labelledby="quickNotesTitle">
+        <header className="pool-header">
+          <div>
+            <p className="eyebrow">随手记</p>
+            <h2 id="quickNotesTitle">我的随手记</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="关闭">×</button>
+        </header>
+        <div className="quick-note-list">
+          {!notes.length && <p className="notes-empty">还没有随手记，想到什么就先记一笔吧。</p>}
+          {notes.map((note) => (
+            <div
+              className={`quick-note-swipe ${swipedId === note.id ? "is-swiped" : ""}`}
+              key={note.id}
+              onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }}
+              onTouchEnd={(event) => {
+                const delta = event.changedTouches[0].clientX - touchStart.current;
+                if (delta < -36) setSwipedId(note.id);
+                if (delta > 36) setSwipedId(null);
+              }}
+            >
+              <article className="quick-note-item">
+                <span className="quick-note-dot" style={{ background: categoryById(note.category).color }} />
+                <div>
+                  <p>{note.text}</p>
+                  <time>{formatQuickNoteTime(note.createdAt)}</time>
+                </div>
+              </article>
+              <button className="attach-note-action" type="button" onClick={() => onAttachStart(note.id)}>
+                挂到任务 →
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+      {attachNoteId && (
+        <section className="attach-task-sheet" role="dialog" aria-modal="true" aria-labelledby="attachTitle">
+          <div className="sheet-handle" aria-hidden="true" />
+          <p id="attachTitle">挂到哪颗任务球？</p>
+          <div>
+            {tasks.map((task) => (
+              <button type="button" key={task.id} onClick={() => onAttach(attachNoteId, task.id)}>
+                <span>{task.name}</span>
+                <small>{categoryById(task.category).name}</small>
+              </button>
+            ))}
+            {!tasks.length && <span className="notes-empty">当前没有未完成的任务球</span>}
+          </div>
+        </section>
+      )}
+    </SheetBackdrop>
+  );
+}
+
+function TaskSubtaskSheet({ task, notes, onAdd, onToggle, onAttach, onClose }) {
+  const [text, setText] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
+  if (!task) return null;
+  const matchingNotes = notes.filter((note) => note.category === task.category);
+  return (
+    <SheetBackdrop onClose={onClose}>
+      <section className="task-subtask-sheet" role="dialog" aria-modal="true" aria-labelledby="subtaskSheetTitle">
+        <div className="sheet-handle" aria-hidden="true" />
+        <span className={`task-category-label ${categoryTagClass(task.category)}`}>
+          {categoryById(task.category).name}
+        </span>
+        <h2 id="subtaskSheetTitle">{task.name}</h2>
+        <div className="subtask-sheet-list">
+          {normalizeSubtasks(task.subtasks).map((item) => (
+            <SubtaskRow key={item.id} item={item} onToggle={() => onToggle(item.id)} />
+          ))}
+        </div>
+        <div className="inline-subtask-input">
+          <input
+            value={text}
+            maxLength="80"
+            placeholder="手动添加子事项"
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                onAdd(text);
+                setText("");
+              }
+            }}
+          />
+          <button type="button" onClick={() => { onAdd(text); setText(""); }}>添加</button>
+        </div>
+        <button className="choose-from-notes-link" type="button" onClick={() => setShowNotes((value) => !value)}>
+          从随手记选
+        </button>
+        {showNotes && (
+          <div className="matching-note-list">
+            {!matchingNotes.length && <span className="notes-empty">没有同分类的随手记</span>}
+            {matchingNotes.map((note) => (
+              <label key={note.id}>
+                <input type="checkbox" onChange={() => onAttach(note.id)} />
+                <span>{note.text}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </section>
+    </SheetBackdrop>
+  );
+}
+
 function FocusMode({
   current,
   timerText,
@@ -1545,7 +1968,9 @@ function FocusMode({
   onAbandon,
   onExit,
   onComplete,
+  onToggleSubtask,
 }) {
+  const [showSubtasks, setShowSubtasks] = useState(false);
   const category = categoryById(current.category);
   const confetti = useMemo(() => buildFocusConfetti(), []);
   const completion = getFocusCompletionState(hasDistracted, timerMinutes);
@@ -1578,20 +2003,48 @@ function FocusMode({
       )}
 
       <header className="focus-header">
-        <div className="focus-task-meta">
-          <span className="category-chip" style={{ background: category.color }}>
-            {category.name}
-          </span>
-          <h1>{current.name}</h1>
+        <div className="focus-subtask-area">
+          <div className="focus-task-meta">
+            <span className="category-chip" style={{ background: category.color }}>
+              {category.name}
+            </span>
+            <h1>{current.name}</h1>
+            {current.subtasks?.length > 0 && (
+              <button
+                className={`focus-subtask-toggle ${showSubtasks ? "is-open" : ""}`}
+                type="button"
+                aria-label={showSubtasks ? "收起子事项" : "展开子事项"}
+                aria-expanded={showSubtasks}
+                onClick={() => setShowSubtasks((value) => !value)}
+              >
+                ▾
+              </button>
+            )}
+          </div>
+          {showSubtasks && current.subtasks?.length > 0 && (
+            <div className="focus-subtask-list">
+              {current.subtasks.map((item) => (
+                <SubtaskRow key={item.id} item={item} onToggle={() => onToggleSubtask(item.id)} />
+              ))}
+            </div>
+          )}
         </div>
         {!timerFinished && (
-          <strong className="focus-time" aria-live="polite">
+          <strong
+            className="focus-time"
+            aria-live="polite"
+            onClick={() => setShowSubtasks(false)}
+          >
             {timerText}
           </strong>
         )}
       </header>
 
-      <section className="focus-visual" aria-live="polite">
+      <section
+        className="focus-visual"
+        aria-live="polite"
+        onClick={() => setShowSubtasks(false)}
+      >
         <div
           className="focus-tree"
           role="img"
@@ -1616,7 +2069,7 @@ function FocusMode({
         )}
       </section>
 
-      <div className="focus-actions">
+      <div className="focus-actions" onClick={() => setShowSubtasks(false)}>
         {timerFinished ? (
           <button className="focus-complete-action focus-complete-reveal" type="button" onClick={onComplete}>
             完成这颗球 ✓
@@ -1653,6 +2106,7 @@ function CurrentPanel({
   completeCurrentTask,
   claimSpecial,
   onBack,
+  onEditSubtasks,
 }) {
   return (
     <section className="current-panel" aria-label="当前任务">
@@ -1676,6 +2130,12 @@ function CurrentPanel({
             <span className="type-chip">任务球</span>
           </div>
           <h3>{current.name}</h3>
+          {current.subtasks?.length > 0 && (
+            <button className="task-subtask-summary" type="button" onClick={onEditSubtasks}>
+              {current.subtasks.filter((item) => item.completed).length} / {current.subtasks.length} 子事项
+              <span>›</span>
+            </button>
+          )}
           <div className="timer-face">
             <span>{timerText}</span>
           </div>
@@ -1756,7 +2216,7 @@ function FinishCelebration({ show, pieces }) {
   );
 }
 
-function TaskQueue({ tasks, completed, onChooseTask }) {
+function TaskQueue({ tasks, completed, onChooseTask, onEditTask }) {
   const [expandedGroups, setExpandedGroups] = useState([]);
   const taskGroups = useMemo(() => groupTaskPool(tasks, completed), [tasks, completed]);
 
@@ -1825,10 +2285,17 @@ function TaskQueue({ tasks, completed, onChooseTask }) {
             {isExpanded && (
               <div className="task-ball-details">
                 {group.pending.map((task, index) => (
-                  <div className="task-ball-status" key={`pending-${task.id}`}>
+                  <button
+                    className="task-ball-status"
+                    type="button"
+                    key={`pending-${task.id}`}
+                    onClick={() => onEditTask(task.id)}
+                  >
                     <span className="task-ball-index">球 {index + 1}</span>
-                    <span className="task-status-pending">待完成</span>
-                  </div>
+                    <span className="task-status-pending">
+                      {task.subtasks?.length ? `${task.subtasks.length} 个子事项 ›` : "添加子事项 ›"}
+                    </span>
+                  </button>
                 ))}
                 {group.completed.map((task, index) => (
                   <div className="task-ball-status is-complete" key={`completed-${task.id}-${task.completedAt}`}>

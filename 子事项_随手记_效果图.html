@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>子事项 + 随手记 效果图</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    background: #EDEAE2;
+    padding: 48px 24px;
+    color: #222;
+  }
+  .page-title { text-align:center; font-size: 24px; font-weight:900; margin-bottom:6px; }
+  .page-sub { text-align:center; color:#6b6b64; font-size:13px; margin-bottom:44px; }
+  .grid {
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    max-width: 1020px;
+    margin: 0 auto 40px;
+  }
+  @media (max-width: 900px){ .grid{ grid-template-columns:1fr; } }
+  .slot { display:flex; flex-direction:column; align-items:center; }
+  .slot-label { font-size: 15px; font-weight:700; margin-bottom:14px; text-align:center; }
+  .frame {
+    width: 300px;
+    background: #FBF5EC;
+    border-radius: 32px;
+    padding: 18px 16px 16px;
+    position: relative;
+    min-height: 200px;
+  }
+  .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .word{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+  .logo{ width:24px;height:24px;border-radius:50%; background:conic-gradient(#8fcbea,#f2a8b7,#f5c445,#8fd9b8,#c9a8e0,#8fcbea); }
+  .header-right{ display:flex; align-items:center; gap:10px; }
+  .note-icon{ width:30px;height:30px;border-radius:50%; background:#fff; border:1px solid #EFE9DD; display:flex;align-items:center;justify-content:center; font-size:14px; }
+  .avatar{ width:26px;height:26px;border-radius:50%; background:#D65A34; color:#fff; font-size:11px; font-weight:700; display:flex;align-items:center;justify-content:center; }
+
+  .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.06em; color:#D65A34; margin-bottom:4px; }
+  .title{ font-size:19px; font-weight:900; margin-bottom:14px; }
+
+  .card{ background:#fff; border-radius:20px; padding:16px; margin-bottom:12px; }
+  .chip-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .chip{ font-size:11.5px; padding:5px 12px; border-radius:20px; font-weight:600; }
+  .chip.work{ background:#EAF5FC; color:#3d7ea6; }
+  .chip.health{ background:#FCEAEE; color:#b5566d; }
+  .chip.study{ background:#FDF3D9; color:#a3813a; }
+  .chip.life{ background:#E6F7EE; color:#3f9c6f; }
+  .chip.creative{ background:#F3EAF8; color:#8a5aa8; }
+
+  .list-item{ background:#fff; border-radius:16px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:flex-start; gap:10px; }
+  .dot{ width:8px;height:8px;border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .list-text{ font-size:13px; color:#333; line-height:1.4; }
+  .list-time{ font-size:10.5px; color:#b5b0a2; margin-top:2px; }
+
+  .subtask-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #F3EFE5; }
+  .subtask-row:last-child{ border-bottom:none; }
+  .checkbox{ width:18px;height:18px;border-radius:6px; border:1.5px solid #C9C4B8; flex-shrink:0; }
+  .checkbox.checked{ background:#5FBFAA; border-color:#5FBFAA; display:flex;align-items:center;justify-content:center; color:#fff; font-size:11px; }
+  .subtask-text{ font-size:13px; }
+  .subtask-text.done{ color:#b5b0a2; text-decoration:line-through; }
+
+  .add-link{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:#3F9C88; font-weight:700; margin-top:8px; }
+
+  .input-box{ background:#fff; border:1.5px solid #EFE9DD; border-radius:14px; padding:12px 14px; font-size:13px; color:#999; margin-bottom:10px; }
+
+  .swipe-hint{ display:flex; align-items:center; gap:8px; }
+  .swipe-action{ background:#D65A34; color:#fff; font-size:11.5px; font-weight:700; padding:10px 14px; border-radius:14px; white-space:nowrap; }
+
+  .modal-overlay{ position:absolute; inset:0; background:rgba(40,35,25,.25); border-radius:32px; display:flex; align-items:flex-end; }
+  .modal-sheet{ background:#FBF5EC; width:100%; border-radius:24px 24px 0 0; padding:18px 16px 20px; }
+  .modal-label{ font-size:12px; color:#8a8a8a; margin-bottom:8px; }
+
+  .task-pill{ background:#fff; border-radius:14px; padding:10px 12px; margin-bottom:8px; font-size:12.5px; display:flex; justify-content:space-between; align-items:center; }
+</style>
+</head>
+<body>
+
+<div class="page-title">子事项 + 随手记 效果图</div>
+<div class="page-sub">这次改动涉及的 5 个界面，沿用现有视觉风格，不改配色体系</div>
+
+<div class="grid">
+
+  <!-- FRAME 1: 摇蛋机主页新增入口 -->
+  <div class="slot">
+    <div class="slot-label">① 摇蛋机主页（头部新增随手记入口）</div>
+    <div class="frame">
+      <div class="header">
+        <div class="word"><div class="logo"></div>扭蛋番茄</div>
+        <div class="header-right">
+          <div class="note-icon">✎</div>
+          <div class="avatar">Z</div>
+        </div>
+      </div>
+      <div class="eyebrow">GACHA POMODORO</div>
+      <div class="title">扭出下一颗<br>任务球</div>
+      <div class="card" style="text-align:center; padding:30px 16px;">
+        <div style="font-size:13px; color:#8a8a8a;">（扭蛋机插画区域）</div>
+        <div style="margin-top:14px; background:#5FBFAA; color:#fff; border-radius:999px; padding:12px; font-size:14px; font-weight:700;">扭一下</div>
+      </div>
+      <div style="font-size:11px; color:#b5b0a2; text-align:center;">点头部 ✎ 图标可随时记一笔</div>
+    </div>
+  </div>
+
+  <!-- FRAME 2: 随手记快速记录浮层 -->
+  <div class="slot">
+    <div class="slot-label">② 点击 ✎ 后弹出的快速记录浮层</div>
+    <div class="frame" style="min-height:420px;">
+      <div class="header" style="opacity:.35;">
+        <div class="word"><div class="logo"></div>扭蛋番茄</div>
+        <div class="header-right"><div class="note-icon">✎</div><div class="avatar">Z</div></div>
+      </div>
+      <div class="modal-overlay">
+        <div class="modal-sheet">
+          <div class="modal-label">随手记一笔</div>
+          <div class="input-box" style="color:#333;">优化背景音效，感觉现在太突兀了|</div>
+          <div class="modal-label" style="margin-top:6px;">选一个分类</div>
+          <div class="chip-row">
+            <div class="chip work" style="outline:2px solid #8FCBEA;">工作</div>
+            <div class="chip health">健康</div>
+            <div class="chip study">学习</div>
+            <div class="chip life">生活</div>
+            <div class="chip creative">创意</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRAME 3: 随手记池子列表 -->
+  <div class="slot">
+    <div class="slot-label">③ 随手记池子（时间顺序 + 分类小圆点 + 左滑挂到任务）</div>
+    <div class="frame">
+      <div class="eyebrow">随手记</div>
+      <div class="title" style="font-size:17px; margin-bottom:14px;">我的随手记</div>
+
+      <div class="list-item">
+        <div class="dot" style="background:#8FCBEA;"></div>
+        <div>
+          <div class="list-text">优化背景音效，感觉现在太突兀了</div>
+          <div class="list-time">今天 14:32</div>
+        </div>
+      </div>
+
+      <div class="swipe-hint">
+        <div class="list-item" style="flex:1; margin-bottom:0;">
+          <div class="dot" style="background:#8FCBEA;"></div>
+          <div>
+            <div class="list-text">扭蛋机开口那里颜色感觉不对</div>
+            <div class="list-time">昨天 09:10</div>
+          </div>
+        </div>
+        <div class="swipe-action">挂到任务 →</div>
+      </div>
+
+      <div class="list-item" style="margin-top:8px;">
+        <div class="dot" style="background:#F5C445;"></div>
+        <div>
+          <div class="list-text">试试用番茄钟背 26 个字母</div>
+          <div class="list-time">7月20日</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(2, 1fr); max-width: 680px;">
+
+  <!-- FRAME 4: 添加任务页新增子事项按钮 -->
+  <div class="slot">
+    <div class="slot-label">④ 添加任务页（任务名下方新增子事项入口）</div>
+    <div class="frame">
+      <div class="header">
+        <div class="word"><div class="logo"></div>扭蛋番茄</div>
+        <div class="avatar">Z</div>
+      </div>
+      <div class="eyebrow">ADD BALLS</div>
+      <div class="title" style="font-size:17px;">添加任务球</div>
+      <div class="card">
+        <div style="font-size:12px; color:#8a8a8a; margin-bottom:6px;">任务名称</div>
+        <div class="input-box" style="color:#333;">优化项目</div>
+        <div class="add-link">+ 添加子事项</div>
+      </div>
+      <div class="card" style="padding:12px 16px;">
+        <div class="subtask-row"><div class="checkbox"></div><div class="subtask-text">优化个人页面按钮</div></div>
+        <div class="subtask-row"><div class="checkbox"></div><div class="subtask-text">优化背景音效</div></div>
+        <div class="add-link" style="margin-top:8px;">从随手记选 · + 手动添加</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRAME 5: 任务子事项清单页（专注时浮现） -->
+  <div class="slot">
+    <div class="slot-label">⑤ 抽到该球后，子事项清单浮现</div>
+    <div class="frame">
+      <div class="header">
+        <div class="word"><div class="logo"></div>扭蛋番茄</div>
+        <div class="avatar">Z</div>
+      </div>
+      <div class="eyebrow">工作 · 本次专注</div>
+      <div class="title" style="font-size:19px;">优化项目</div>
+      <div class="card">
+        <div style="font-size:12px; color:#8a8a8a; margin-bottom:8px;">本次可以做这些</div>
+        <div class="subtask-row"><div class="checkbox checked">✓</div><div class="subtask-text done">优化个人页面按钮</div></div>
+        <div class="subtask-row"><div class="checkbox"></div><div class="subtask-text">优化背景音效</div></div>
+        <div class="subtask-row"><div class="checkbox"></div><div class="subtask-text">扭蛋机开口颜色调整</div></div>
+      </div>
+      <div style="text-align:center; margin-top:6px;">
+        <div style="display:inline-block; background:#5FBFAA; color:#fff; border-radius:999px; padding:10px 24px; font-size:13px; font-weight:700;">25:00 专注中</div>
+      </div>
+      <div style="font-size:10.5px; color:#b5b0a2; text-align:center; margin-top:8px;">还有子事项没做完，这颗球会留在池子里</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

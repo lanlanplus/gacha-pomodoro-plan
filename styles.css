@@ -131,6 +131,25 @@ button {
   flex: 0 0 auto;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-note-entry {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: 17px;
+  box-shadow: 0 5px 14px rgba(45, 40, 31, 0.07);
+}
+
 .account-avatar-btn {
   display: flex;
   align-items: center;
@@ -1155,6 +1174,102 @@ main {
   grid-column: 1 / -1;
 }
 
+.draft-subtasks {
+  margin-top: -4px;
+}
+
+.add-subtask-link,
+.choose-from-notes-link {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.subtask-editor-card {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+  padding: 4px 16px 14px;
+  border-radius: 16px;
+  background: var(--color-bg-card);
+}
+
+.subtask-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(232, 227, 220, 0.62);
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.subtask-row:last-child {
+  border-bottom: 0;
+}
+
+.subtask-checkbox {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #c9c4b8;
+  border-radius: 6px;
+  color: white;
+  font-size: 11px;
+}
+
+.subtask-row.is-completed .subtask-checkbox {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.subtask-text {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.subtask-text.is-done {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.inline-subtask-input {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.inline-subtask-input input {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: white;
+  padding: 0 12px;
+}
+
+.inline-subtask-input button {
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-accent);
+  color: white;
+  padding: 0 16px;
+  font-weight: 800;
+}
+
 .field input,
 .field select {
   width: 100%;
@@ -1331,7 +1446,7 @@ main {
 
 .focus-header {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   display: grid;
   justify-items: start;
   gap: 8px;
@@ -1344,6 +1459,56 @@ main {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.focus-subtask-area {
+  position: relative;
+}
+
+.focus-subtask-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transform: rotate(0);
+  transition: transform 0.2s ease;
+}
+
+.focus-subtask-toggle.is-open {
+  transform: rotate(180deg);
+}
+
+.focus-subtask-list {
+  position: absolute;
+  top: calc(100% + 54px);
+  left: 0;
+  z-index: 4;
+  width: min(420px, calc(100vw - 48px));
+  padding: 4px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-bg-card);
+  box-shadow: 0 14px 32px rgba(45, 40, 31, 0.1);
+  animation: subtask-list-reveal 0.22s ease-out;
+}
+
+.task-subtask-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .focus-task-meta .category-chip {
@@ -1840,6 +2005,274 @@ main {
 .choose-task-action:hover {
   background: var(--color-dark);
   color: var(--color-primary-text);
+}
+
+.note-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(40, 35, 25, 0.25);
+}
+
+.quick-capture-sheet,
+.task-subtask-sheet,
+.attach-task-sheet {
+  width: min(560px, 100%);
+  max-height: min(76dvh, 720px);
+  overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  background: var(--color-bg-page);
+  padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -18px 44px rgba(45, 40, 31, 0.15);
+}
+
+.sheet-handle {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.quick-capture-sheet {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-capture-sheet > label,
+.capture-category-label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.quick-capture-sheet textarea {
+  width: 100%;
+  resize: none;
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  padding: 12px 14px;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.quick-capture-sheet textarea:focus {
+  border-color: rgba(31, 156, 149, 0.5);
+}
+
+.capture-category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.capture-category-tags .cat-tag {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.capture-save-action {
+  justify-self: end;
+  min-width: 76px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: white;
+  font-weight: 800;
+}
+
+.capture-save-action:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.pool-backdrop {
+  align-items: stretch;
+  padding: 0;
+  background: var(--color-bg-page);
+}
+
+.quick-notes-pool {
+  width: min(720px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 44px) 16px 110px;
+  overflow: hidden;
+}
+
+.pool-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.pool-header h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+
+.pool-header > button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  font-size: 21px;
+}
+
+.quick-note-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-note-swipe {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  border-radius: 16px;
+  background: var(--color-primary);
+  overflow: hidden;
+}
+
+.quick-note-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 68px;
+  border-radius: 16px;
+  background: var(--color-bg-card);
+  padding: 12px 14px;
+  transform: translateX(0);
+  transition: transform 0.22s ease;
+}
+
+.quick-note-swipe.is-swiped .quick-note-item {
+  transform: translateX(-118px);
+}
+
+.quick-note-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+
+.quick-note-item p {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.quick-note-item time {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.attach-note-action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 118px;
+  border: 0;
+  background: var(--color-primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.attach-task-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  margin: auto;
+}
+
+.attach-task-sheet > p {
+  margin: 0 0 10px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.attach-task-sheet > div:last-child {
+  display: grid;
+  gap: 8px;
+}
+
+.attach-task-sheet button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-bg-card);
+  padding: 0 12px;
+  text-align: left;
+}
+
+.attach-task-sheet small {
+  color: var(--color-text-secondary);
+}
+
+.notes-empty {
+  margin: 14px 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.task-subtask-sheet h2 {
+  margin: 8px 0 10px;
+  font-size: 22px;
+}
+
+.task-category-label {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subtask-sheet-list {
+  padding: 0 14px;
+  border-radius: 16px;
+  background: var(--color-bg-card);
+}
+
+.matching-note-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.matching-note-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 14px;
+  background: var(--color-bg-card);
+  padding: 11px 12px;
+  font-size: 13px;
+}
+
+@keyframes subtask-list-reveal {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .progress-grid {
