@@ -351,7 +351,7 @@ export default function App() {
 
       const { data: completionLogs, error: completionLogsError } = await supabase
         .from(completionLogTable)
-        .select("id, task_name, category, completed_at")
+        .select("id, task_name, category, minutes, completed_at")
         .eq("user_id", userId)
         .order("completed_at", { ascending: true });
       if (completionLogsError) {
@@ -751,12 +751,13 @@ export default function App() {
       user_id: userId,
       task_name: entry.taskName,
       category: categoryById(entry.category).name,
+      minutes: entry.minutes,
       completed_at: entry.completedAt,
     };
     const { data, error } = await supabase
       .from(completionLogTable)
       .insert(row)
-      .select("id, task_name, category, completed_at")
+      .select("id, task_name, category, minutes, completed_at")
       .single();
     if (error) {
       setNotice(`周历史记录失败：${error.message}`);
@@ -787,6 +788,7 @@ export default function App() {
     void writeCompletionLog({
       taskName: current.name,
       category: current.category,
+      minutes,
       completedAt,
     });
     setFocusMode(false);
@@ -1522,7 +1524,6 @@ export default function App() {
               categories={categories}
               currentWeekKey={currentWeekKey}
               currentStats={weekStats}
-              currentFocusMinutes={summaryTotal}
               onBack={() => setSummaryMode("history")}
             />
           )}
@@ -2356,8 +2357,17 @@ function CategoryProgress({ tasks, completed }) {
   );
 }
 
-function WeeklyOverview({ percent, done, remaining, focusMinutes, best = false }) {
+function WeeklyOverview({
+  percent,
+  done,
+  remaining,
+  focusMinutes,
+  hasCompleteFocusMinutes = true,
+  missingMinutesCount = 0,
+  best = false,
+}) {
   const hasRate = Number.isFinite(percent);
+  const hasRecordedFocusMinutes = Number.isFinite(focusMinutes) && focusMinutes > 0;
   return (
     <section className="summary-overview" aria-label="本周整体完成情况">
       <div className="completion-ring-wrap">
@@ -2377,14 +2387,21 @@ function WeeklyOverview({ percent, done, remaining, focusMinutes, best = false }
         </p>
       </div>
 
-      {Number.isFinite(focusMinutes) ? (
+      {hasCompleteFocusMinutes && Number.isFinite(focusMinutes) ? (
         <div className="focus-story">
           <span aria-hidden="true">◷</span>
           <p>{buildFocusStory(focusMinutes)}</p>
         </div>
+      ) : hasRecordedFocusMinutes ? (
+        <div className="focus-story">
+          <span aria-hidden="true">◷</span>
+          <p>
+            已记录 {formatMinutes(focusMinutes)}专注时长，另有 {missingMinutesCount} 次旧记录暂无时长数据。
+          </p>
+        </div>
       ) : (
         <p className="history-detail-note">
-          历史日志精确记录完成颗数与分类；该周任务总数未留存，因此不估算完成率和剩余颗数。
+          该周完成记录未保存专注时长，暂无专注时长数据。
         </p>
       )}
     </section>
@@ -2455,7 +2472,6 @@ function WeeklyHistoryDetail({
   categories,
   currentWeekKey,
   currentStats,
-  currentFocusMinutes,
   onBack,
 }) {
   const isCurrent = week.key === currentWeekKey;
@@ -2489,7 +2505,9 @@ function WeeklyHistoryDetail({
         percent={isCurrent ? currentStats.percent : null}
         done={week.completed}
         remaining={isCurrent ? currentStats.total - week.completed : null}
-        focusMinutes={isCurrent ? currentFocusMinutes : null}
+        focusMinutes={week.focusMinutes}
+        hasCompleteFocusMinutes={week.hasCompleteFocusMinutes}
+        missingMinutesCount={week.missingMinutesCount}
         best={week.best}
       />
       <section className="summary-categories">

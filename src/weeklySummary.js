@@ -33,10 +33,17 @@ export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
       ...week,
       precise: true,
       completed: 0,
+      focusMinutes: 0,
+      missingMinutesCount: 0,
       categoryCounts: {},
       logs: [],
     };
     item.completed += 1;
+    if (Number.isFinite(log.minutes)) {
+      item.focusMinutes += log.minutes;
+    } else {
+      item.missingMinutesCount += 1;
+    }
     item.categoryCounts[log.category] = (item.categoryCounts[log.category] || 0) + 1;
     item.logs.push(log);
     preciseWeeks.set(week.key, item);
@@ -54,6 +61,7 @@ export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
   const precise = [...preciseWeeks.values()].sort((a, b) => a.start - b.start);
   let historicalHigh = -1;
   precise.forEach((week, index) => {
+    week.hasCompleteFocusMinutes = week.missingMinutesCount === 0;
     const ended = week.end < now;
     week.best = ended && index > 0 && week.completed >= historicalHigh;
     week.tiedBest = week.best && week.completed === historicalHigh;
@@ -75,11 +83,29 @@ export function overlayCurrentWeekState(history, completed, now = new Date()) {
     counts[task.category] = (counts[task.category] || 0) + 1;
     return counts;
   }, {});
+  const fallbackFocus = completed.reduce(
+    (summary, task) => {
+      if (Number.isFinite(task.minutes)) {
+        summary.focusMinutes += task.minutes;
+      } else {
+        summary.missingMinutesCount += 1;
+      }
+      return summary;
+    },
+    { focusMinutes: 0, missingMinutesCount: 0 },
+  );
+  const focusMinutes = existing ? existing.focusMinutes : fallbackFocus.focusMinutes;
+  const missingMinutesCount = existing
+    ? existing.missingMinutesCount
+    : fallbackFocus.missingMinutesCount;
   const current = {
     ...(existing || currentWeek),
     precise: true,
     current: true,
     completed: completed.length,
+    focusMinutes,
+    missingMinutesCount,
+    hasCompleteFocusMinutes: missingMinutesCount === 0,
     categoryCounts,
     topCategory: Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null,
     best: false,

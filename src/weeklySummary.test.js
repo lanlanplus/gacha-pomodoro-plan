@@ -145,6 +145,56 @@ test("groups completion logs by local ISO week and keeps legacy weeks imprecise"
   assert.equal(history[1].best, false);
 });
 
+test("returns no weekly history for a new user without logs or legacy activity", () => {
+  assert.deepEqual(buildWeeklyHistory([], []), []);
+});
+
+test("keeps all-old completion durations explicitly unavailable", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "work", completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "study", minutes: null, completed_at: "2026-06-16T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-07-01T10:00:00+08:00"),
+  );
+
+  assert.equal(history[0].focusMinutes, 0);
+  assert.equal(history[0].missingMinutesCount, 2);
+  assert.equal(history[0].hasCompleteFocusMinutes, false);
+});
+
+test("aggregates focus minutes and reports missing legacy durations", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "work", minutes: 25, completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "study", minutes: 15, completed_at: "2026-06-16T10:00:00+08:00" },
+      { category: "health", minutes: null, completed_at: "2026-06-17T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-07-01T10:00:00+08:00"),
+  );
+
+  assert.equal(history[0].focusMinutes, 40);
+  assert.equal(history[0].missingMinutesCount, 1);
+  assert.equal(history[0].hasCompleteFocusMinutes, false);
+});
+
+test("marks focus minutes complete when every completion log has a duration", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "work", minutes: 25, completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "study", minutes: 20, completed_at: "2026-06-16T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-07-01T10:00:00+08:00"),
+  );
+
+  assert.equal(history[0].focusMinutes, 45);
+  assert.equal(history[0].missingMinutesCount, 0);
+  assert.equal(history[0].hasCompleteFocusMinutes, true);
+});
+
 test("awards ended weeks from the second precise week and includes ties", () => {
   const history = buildWeeklyHistory(
     [
@@ -186,4 +236,64 @@ test("uses the current task pool for the current week without changing past week
   assert.deepEqual(displayed[0].categoryCounts, { study: 2, life: 1 });
   assert.equal(displayed[1].key, "2026-06-15");
   assert.equal(displayed[1].completed, 1);
+});
+
+test("keeps persisted focus minutes when current state is reset", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "工作", minutes: 25, completed_at: "2026-06-22T10:00:00+08:00" },
+      { category: "健康", minutes: 20, completed_at: "2026-06-23T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+
+  const displayed = overlayCurrentWeekState(
+    history,
+    [],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+
+  assert.equal(displayed[0].completed, 0);
+  assert.equal(displayed[0].focusMinutes, 45);
+  assert.equal(displayed[0].missingMinutesCount, 0);
+  assert.equal(displayed[0].hasCompleteFocusMinutes, true);
+});
+
+test("uses all persisted minutes after a same-week reset and a new completion", () => {
+  const history = buildWeeklyHistory(
+    [
+      { category: "工作", minutes: 25, completed_at: "2026-06-22T10:00:00+08:00" },
+      { category: "健康", minutes: 20, completed_at: "2026-06-23T10:00:00+08:00" },
+      { category: "学习", minutes: 15, completed_at: "2026-06-24T10:00:00+08:00" },
+    ],
+    [],
+    new Date("2026-06-24T10:30:00+08:00"),
+  );
+
+  const displayed = overlayCurrentWeekState(
+    history,
+    [{ category: "study", minutes: 15 }],
+    new Date("2026-06-24T10:30:00+08:00"),
+  );
+
+  assert.equal(displayed[0].completed, 1);
+  assert.equal(displayed[0].focusMinutes, 60);
+  assert.equal(displayed[0].missingMinutesCount, 0);
+  assert.equal(displayed[0].hasCompleteFocusMinutes, true);
+});
+
+test("falls back to current state focus minutes when no persisted week exists", () => {
+  const displayed = overlayCurrentWeekState(
+    [],
+    [
+      { category: "study", minutes: 12 },
+      { category: "life", minutes: 18 },
+    ],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+
+  assert.equal(displayed[0].focusMinutes, 30);
+  assert.equal(displayed[0].missingMinutesCount, 0);
+  assert.equal(displayed[0].hasCompleteFocusMinutes, true);
 });

@@ -46,8 +46,27 @@ create table if not exists public.task_completion_log (
   user_id uuid not null references auth.users(id) on delete cascade,
   task_name text not null,
   category text not null check (category in ('工作', '健康', '学习', '生活', '创意')),
+  minutes integer,
   completed_at timestamptz not null default now()
 );
+
+alter table public.task_completion_log
+  add column if not exists minutes integer;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'task_completion_log_minutes_check'
+      and conrelid = 'public.task_completion_log'::regclass
+  ) then
+    alter table public.task_completion_log
+      add constraint task_completion_log_minutes_check
+      check (minutes is null or minutes >= 1);
+  end if;
+end;
+$$;
 
 create index if not exists task_completion_log_user_completed_at_idx
   on public.task_completion_log (user_id, completed_at desc);
