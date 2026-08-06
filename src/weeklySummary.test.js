@@ -9,7 +9,9 @@ import {
   buildWeeklyMessage,
   getIsoWeek,
   groupCompletedTasks,
+  normalizeCompletionLogCategories,
   overlayCurrentWeekState,
+  selectCurrentWeekCompletionData,
 } from "./weeklySummary.js";
 
 const categories = [
@@ -145,6 +147,25 @@ test("groups completion logs by local ISO week and keeps legacy weeks imprecise"
   assert.equal(history[1].best, false);
 });
 
+test("maps persisted category names back to category ids", () => {
+  const normalized = normalizeCompletionLogCategories(
+    [
+      { category: "工作" },
+      { category: "健康" },
+      { category: "custom" },
+    ],
+    { 工作: "work", 健康: "health" },
+  );
+
+  assert.deepEqual(normalized.map((log) => log.category), ["work", "health", "custom"]);
+  const stats = buildCategoryStats(categories, [], normalized);
+  assert.deepEqual(stats.map(({ id, done }) => ({ id, done })), [
+    { id: "work", done: 1 },
+    { id: "health", done: 1 },
+    { id: "study", done: 0 },
+  ]);
+});
+
 test("returns no weekly history for a new user without logs or legacy activity", () => {
   assert.deepEqual(buildWeeklyHistory([], []), []);
 });
@@ -211,11 +232,11 @@ test("awards ended weeks from the second precise week and includes ties", () => 
   assert.equal(getIsoWeek("2026-01-01T10:00:00+08:00").weekNumber, 1);
 });
 
-test("uses the current task pool for the current week without changing past weeks", () => {
+test("prefers current-week logs over state completions", () => {
   const history = buildWeeklyHistory(
     [
-      { category: "工作", completed_at: "2026-06-15T10:00:00+08:00" },
-      { category: "健康", completed_at: "2026-06-22T10:00:00+08:00" },
+      { category: "work", completed_at: "2026-06-15T10:00:00+08:00" },
+      { category: "health", completed_at: "2026-06-22T10:00:00+08:00" },
     ],
     [],
     new Date("2026-06-24T10:00:00+08:00"),
@@ -231,14 +252,22 @@ test("uses the current task pool for the current week without changing past week
   );
 
   assert.equal(displayed[0].key, "2026-06-22");
-  assert.equal(displayed[0].completed, 3);
-  assert.equal(displayed[0].topCategory, "study");
-  assert.deepEqual(displayed[0].categoryCounts, { study: 2, life: 1 });
+  assert.equal(displayed[0].completed, 1);
+  assert.equal(displayed[0].topCategory, "health");
+  assert.deepEqual(displayed[0].categoryCounts, { health: 1 });
   assert.equal(displayed[1].key, "2026-06-15");
   assert.equal(displayed[1].completed, 1);
+
+  const selected = selectCurrentWeekCompletionData(
+    history,
+    [{ category: "study" }],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+  assert.equal(selected.source, "logs");
+  assert.deepEqual(selected.completions.map((item) => item.category), ["health"]);
 });
 
-test("keeps persisted focus minutes when current state is reset", () => {
+test("keeps logged counts, categories, and focus minutes when state is reset", () => {
   const history = buildWeeklyHistory(
     [
       { category: "工作", minutes: 25, completed_at: "2026-06-22T10:00:00+08:00" },
@@ -254,13 +283,14 @@ test("keeps persisted focus minutes when current state is reset", () => {
     new Date("2026-06-24T10:00:00+08:00"),
   );
 
-  assert.equal(displayed[0].completed, 0);
+  assert.equal(displayed[0].completed, 2);
+  assert.deepEqual(displayed[0].categoryCounts, { 工作: 1, 健康: 1 });
   assert.equal(displayed[0].focusMinutes, 45);
   assert.equal(displayed[0].missingMinutesCount, 0);
   assert.equal(displayed[0].hasCompleteFocusMinutes, true);
 });
 
-test("uses all persisted minutes after a same-week reset and a new completion", () => {
+test("keeps all logged stats after a same-week reset and a new state completion", () => {
   const history = buildWeeklyHistory(
     [
       { category: "工作", minutes: 25, completed_at: "2026-06-22T10:00:00+08:00" },
@@ -277,13 +307,14 @@ test("uses all persisted minutes after a same-week reset and a new completion", 
     new Date("2026-06-24T10:30:00+08:00"),
   );
 
-  assert.equal(displayed[0].completed, 1);
+  assert.equal(displayed[0].completed, 3);
+  assert.deepEqual(displayed[0].categoryCounts, { 工作: 1, 健康: 1, 学习: 1 });
   assert.equal(displayed[0].focusMinutes, 60);
   assert.equal(displayed[0].missingMinutesCount, 0);
   assert.equal(displayed[0].hasCompleteFocusMinutes, true);
 });
 
-test("falls back to current state focus minutes when no persisted week exists", () => {
+test("falls back to local state stats when no current-week logs exist", () => {
   const displayed = overlayCurrentWeekState(
     [],
     [
@@ -293,7 +324,17 @@ test("falls back to current state focus minutes when no persisted week exists", 
     new Date("2026-06-24T10:00:00+08:00"),
   );
 
+  assert.equal(displayed[0].completed, 2);
+  assert.deepEqual(displayed[0].categoryCounts, { study: 1, life: 1 });
   assert.equal(displayed[0].focusMinutes, 30);
   assert.equal(displayed[0].missingMinutesCount, 0);
   assert.equal(displayed[0].hasCompleteFocusMinutes, true);
+
+  const selected = selectCurrentWeekCompletionData(
+    [],
+    [{ category: "study", minutes: 12 }],
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+  assert.equal(selected.source, "state");
+  assert.deepEqual(selected.completions, [{ category: "study", minutes: 12 }]);
 });

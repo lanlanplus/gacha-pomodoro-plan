@@ -25,6 +25,13 @@ export function getIsoWeek(dateInput = new Date()) {
   return { key, weekNumber, start, end };
 }
 
+export function normalizeCompletionLogCategories(logs, categoryIdByName) {
+  return logs.map((log) => ({
+    ...log,
+    category: categoryIdByName[log.category] || log.category,
+  }));
+}
+
 export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
   const preciseWeeks = new Map();
   logs.forEach((log) => {
@@ -74,9 +81,36 @@ export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
   return [...precise, ...legacyWeeks.values()].sort((a, b) => b.start - a.start);
 }
 
-export function overlayCurrentWeekState(history, completed, now = new Date()) {
+export function selectCurrentWeekCompletionData(history, completed, now = new Date()) {
   const currentWeek = getIsoWeek(now);
-  const existing = history.find((week) => week.key === currentWeek.key);
+  const loggedWeek = history.find(
+    (week) => week.key === currentWeek.key && week.precise,
+  );
+  return {
+    currentWeek,
+    loggedWeek,
+    completions: loggedWeek?.logs || completed,
+    source: loggedWeek ? "logs" : "state",
+  };
+}
+
+export function overlayCurrentWeekState(history, completed, now = new Date()) {
+  const { currentWeek, loggedWeek: existing } = selectCurrentWeekCompletionData(
+    history,
+    completed,
+    now,
+  );
+  if (existing) {
+    return [
+      {
+        ...existing,
+        current: true,
+        best: false,
+        tiedBest: false,
+      },
+      ...history.filter((week) => week.key !== currentWeek.key),
+    ];
+  }
   if (!existing && !completed.length) return history;
 
   const categoryCounts = completed.reduce((counts, task) => {
@@ -94,12 +128,10 @@ export function overlayCurrentWeekState(history, completed, now = new Date()) {
     },
     { focusMinutes: 0, missingMinutesCount: 0 },
   );
-  const focusMinutes = existing ? existing.focusMinutes : fallbackFocus.focusMinutes;
-  const missingMinutesCount = existing
-    ? existing.missingMinutesCount
-    : fallbackFocus.missingMinutesCount;
+  const focusMinutes = fallbackFocus.focusMinutes;
+  const missingMinutesCount = fallbackFocus.missingMinutesCount;
   const current = {
-    ...(existing || currentWeek),
+    ...currentWeek,
     precise: true,
     current: true,
     completed: completed.length,

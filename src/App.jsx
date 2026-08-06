@@ -22,8 +22,11 @@ import {
   buildWeeklyMessage,
   getIsoWeek,
   groupCompletedTasks,
+  normalizeCompletionLogCategories,
   overlayCurrentWeekState,
+  selectCurrentWeekCompletionData,
 } from "./weeklySummary.js";
+import { buildClearReloadState, resetDrawTransientState } from "./clearReload.js";
 import { groupTaskPool } from "./taskGroups.js";
 import {
   makeQuickNote,
@@ -42,6 +45,9 @@ const categories = [
   { id: "life", name: "生活", color: "#1f9c95" },
   { id: "creative", name: "创意", color: "#d95f92" },
 ];
+const categoryIdByName = Object.fromEntries(
+  categories.map((category) => [category.name, category.id]),
+);
 
 const specials = [
   { icon: "☕", name: "自由时间", text: "给自己一段不带内疚感的空白。" },
@@ -238,8 +244,8 @@ export default function App() {
   const [currentDate, setCurrentDate] = useState(todayKey);
   const [weekendCategories, setWeekendCategories] = useState(loadWeekendCategories);
   const [showRhythmTip, setShowRhythmTip] = useState(false);
-  const [showNewWeekChoice, setShowNewWeekChoice] = useState(false);
-  const [isNewWeekSetup, setIsNewWeekSetup] = useState(false);
+  const [showClearReloadConfirm, setShowClearReloadConfirm] = useState(false);
+  const [isClearReloadSetup, setIsClearReloadSetup] = useState(false);
   const [showGachaSettings, setShowGachaSettings] = useState(false);
   const [showTaskPool, setShowTaskPool] = useState(false);
   const [notice, setNotice] = useState("");
@@ -277,6 +283,7 @@ export default function App() {
   const [finishPieces, setFinishPieces] = useState({ fireworks: [], confetti: [] });
   const [showFinishCelebration, setShowFinishCelebration] = useState(false);
   const [pendingPrize, setPendingPrize] = useState(null);
+  const drawSequenceRef = useRef(0);
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
   const audioRef = useRef(null);
@@ -478,28 +485,41 @@ export default function App() {
     };
   }, [timerRunning]);
 
+  const normalizedCompletionLogs = useMemo(
+    () => normalizeCompletionLogCategories(taskCompletionLogs, categoryIdByName),
+    [taskCompletionLogs],
+  );
+  const currentWeekKey = getIsoWeek().key;
+  const weeklyHistory = useMemo(
+    () => buildWeeklyHistory(normalizedCompletionLogs, taskHistory),
+    [normalizedCompletionLogs, taskHistory],
+  );
+  const currentWeekCompletionData = selectCurrentWeekCompletionData(
+    weeklyHistory,
+    state.completed,
+  );
+  const currentWeekCompletions = currentWeekCompletionData.completions;
   const weekStats = useMemo(() => {
-    const total = state.tasks.length + state.completed.length;
-    const done = state.completed.length;
+    const total = state.tasks.length + currentWeekCompletions.length;
+    const done = currentWeekCompletions.length;
     const percent = total ? Math.round((done / total) * 100) : 100;
     return { total, done, percent };
-  }, [state.tasks.length, state.completed.length]);
+  }, [state.tasks.length, currentWeekCompletions.length]);
 
   const summaryTotal = useMemo(
-    () => state.completed.reduce((sum, item) => sum + item.minutes, 0),
-    [state.completed],
+    () => currentWeekCompletions.reduce(
+      (sum, item) => sum + (Number.isFinite(item.minutes) ? item.minutes : 0),
+      0,
+    ),
+    [currentWeekCompletions],
   );
   const categoryStats = useMemo(
-    () => buildCategoryStats(categories, state.tasks, state.completed),
-    [state.tasks, state.completed],
+    () => buildCategoryStats(categories, state.tasks, currentWeekCompletions),
+    [state.tasks, currentWeekCompletions],
   );
   const weeklyMessage = useMemo(
     () => buildWeeklyMessage(weekStats.percent, categoryStats),
     [weekStats.percent, categoryStats],
-  );
-  const weeklyHistory = useMemo(
-    () => buildWeeklyHistory(taskCompletionLogs, taskHistory),
-    [taskCompletionLogs, taskHistory],
   );
   const displayedWeeklyHistory = useMemo(
     () => overlayCurrentWeekState(weeklyHistory, state.completed),
@@ -508,7 +528,6 @@ export default function App() {
   const preciseWeeks = weeklyHistory.filter((week) => week.precise);
   const activeWeekCount = preciseWeeks.length;
   const trophyCount = preciseWeeks.filter((week) => week.best).length;
-  const currentWeekKey = getIsoWeek().key;
   const selectedHistoryWeek = displayedWeeklyHistory.find(
     (week) => week.key === selectedHistoryWeekKey,
   );
@@ -636,6 +655,8 @@ export default function App() {
 
   function drawTask() {
     if (drawInProgress) return;
+    const drawSequence = drawSequenceRef.current + 1;
+    drawSequenceRef.current = drawSequence;
     stopTimer();
     setMachineMode("draw");
     playSound("turn");
@@ -663,11 +684,14 @@ export default function App() {
     setState((currentState) => ({ ...currentState, current: null }));
 
     window.setTimeout(() => {
+      if (drawSequenceRef.current !== drawSequence) return;
       resetTimer(timerMinutes);
       if (selectedPrize) {
         setDrawPhase("dropping");
         playSound("drop");
-        window.setTimeout(() => setDrawPhase("prize"), 760);
+        window.setTimeout(() => {
+          if (drawSequenceRef.current === drawSequence) setDrawPhase("prize");
+        }, 760);
       } else {
         setDrawPhase("idle");
         setDrawInProgress(false);
@@ -798,34 +822,34 @@ export default function App() {
     resetTimer(timerMinutes);
   }
 
-  function startNewWeekSetup(clearTasks) {
+  function startClearReload() {
     stopTimer();
-    setState((currentState) => ({
-      tasks: clearTasks ? [] : currentState.tasks,
-      completed: [],
-      dailyDraws: [],
-      dailyTarget: currentState.dailyTarget,
-      specialEnabled: currentState.specialEnabled,
-      current: null,
-      quickNotes: currentState.quickNotes || [],
-    }));
-    setShowNewWeekChoice(false);
-    setIsNewWeekSetup(true);
+    resetDrawTransientState({
+      cancelPendingDraw: () => {
+        drawSequenceRef.current += 1;
+      },
+      setPendingPrize,
+      setDrawInProgress,
+      setDrawPhase,
+    });
+    setState(buildClearReloadState);
+    setShowClearReloadConfirm(false);
+    setIsClearReloadSetup(true);
     setMachineMode("draw");
     setView("add");
     resetTimer(timerMinutes);
   }
 
-  function openNewWeekSetup() {
+  function openClearReload() {
     if (state.tasks.length) {
-      setShowNewWeekChoice(true);
+      setShowClearReloadConfirm(true);
       return;
     }
-    startNewWeekSetup(false);
+    startClearReload();
   }
 
-  function finishNewWeekSetup() {
-    setIsNewWeekSetup(false);
+  function finishClearReload() {
+    setIsClearReloadSetup(false);
     setView("machine");
     setShowRhythmTip(true);
   }
@@ -1060,8 +1084,8 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <button className="new-week-action" type="button" onClick={openNewWeekSetup}>
-                    新一周
+                  <button className="clear-reload-action" type="button" onClick={openClearReload}>
+                    清空重装
                   </button>
                 </div>
 
@@ -1428,7 +1452,7 @@ export default function App() {
               <div id="taskPoolContent" className="collapsible-section-content">
                 <div className="section-head compact task-pool-actions">
                   <button className="ghost-action small" type="button" onClick={clearCompleted}>
-                    清理完成记录
+                    清理机内完成球（周统计保留）
                   </button>
                 </div>
                 <TaskQueue
@@ -1441,8 +1465,8 @@ export default function App() {
             )}
           </section>
 
-          {isNewWeekSetup && (
-            <button className="ghost-action new-week-confirm-action" type="button" onClick={finishNewWeekSetup}>
+          {isClearReloadSetup && (
+            <button className="ghost-action clear-reload-confirm-action" type="button" onClick={finishClearReload}>
               确认完成
             </button>
           )}
@@ -1453,7 +1477,7 @@ export default function App() {
             <p className="eyebrow">BALANCE</p>
             <h2 id="progressTitle">分类进度</h2>
           </div>
-          <CategoryProgress tasks={state.tasks} completed={state.completed} />
+          <CategoryProgress tasks={state.tasks} completed={currentWeekCompletions} />
         </section>
 
         <section id="summary" className={`view ${view === "summary" ? "active" : ""}`} aria-labelledby="summaryTitle">
@@ -1595,22 +1619,24 @@ export default function App() {
         />
       )}
 
-      {showNewWeekChoice && (
+      {showClearReloadConfirm && (
         <div className="monday-sheet-backdrop" role="presentation">
           <section
             className="monday-sheet"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="newWeekChoiceTitle"
+            aria-labelledby="clearReloadConfirmTitle"
           >
             <div className="sheet-handle" aria-hidden="true" />
-            <h2 id="newWeekChoiceTitle">还有 {state.tasks.length} 颗球未完成</h2>
-            <p>要把这些球带到新一周吗？</p>
-            <button className="primary-action" type="button" onClick={() => startNewWeekSetup(false)}>
-              保留并继续
+            <h2 id="clearReloadConfirmTitle">
+              还有 {state.tasks.length} 颗球未完成，确定清空吗？
+            </h2>
+            <p>本周统计记录会保留，清空后进入重新装球。</p>
+            <button className="primary-action" type="button" onClick={startClearReload}>
+              确定
             </button>
-            <button className="ghost-action" type="button" onClick={() => startNewWeekSetup(true)}>
-              清空重来
+            <button className="ghost-action" type="button" onClick={() => setShowClearReloadConfirm(false)}>
+              取消
             </button>
           </section>
         </div>
@@ -1867,7 +1893,7 @@ function QuickNotesPool({ notes, tasks, attachNoteId, onAttachStart, onAttach, o
           <button type="button" onClick={onClose} aria-label="关闭">×</button>
         </header>
         <div className="quick-note-list">
-          {!notes.length && <p className="notes-empty">还没有随手记，想到什么就先记一笔吧。</p>}
+          {!notes.length && <WritingDogEmptyState />}
           {notes.map((note) => (
             <div
               className={`quick-note-swipe ${swipedId === note.id ? "is-swiped" : ""}`}
@@ -1909,6 +1935,45 @@ function QuickNotesPool({ notes, tasks, attachNoteId, onAttachStart, onAttach, o
         </section>
       )}
     </SheetBackdrop>
+  );
+}
+
+function WritingDogEmptyState() {
+  const handwritingPaths = [
+    "M 401 813 C 410 803, 416 824, 425 812 S 440 824, 449 812 S 465 824, 474 812",
+    "M 389 840 C 399 829, 407 852, 418 839 S 436 852, 447 839 S 466 853, 478 839 S 495 850, 506 839",
+    "M 422 866 C 432 855, 442 878, 453 865 S 472 878, 483 865 S 502 878, 514 865 S 533 876, 544 865",
+  ];
+
+  return (
+    <div className="writing-dog-empty">
+      <div className="writing-dog-animation" role="img" aria-label="小狗正趴在桌上写随手记">
+        <img className="writing-dog-base" src="/assets/writing-dog.png" alt="" />
+        <svg
+          className="writing-dog-paper"
+          viewBox="0 0 1254 1254"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          <path className="writing-dog-paper-cover" d="M 350 785 L 620 805 L 590 902 L 354 870 Z" />
+          <g className="writing-dog-ink">
+            {handwritingPaths.map((path, index) => (
+              <path
+                className="writing-dog-line"
+                d={path}
+                key={path}
+                pathLength="1"
+                style={{ "--line-index": index }}
+              />
+            ))}
+          </g>
+        </svg>
+        <div className="writing-dog-paw" aria-hidden="true">
+          <img src="/assets/writing-dog.png" alt="" />
+        </div>
+      </div>
+      <p className="notes-empty">还没有随手记，想到什么就先记一笔吧。</p>
+    </div>
   );
 }
 

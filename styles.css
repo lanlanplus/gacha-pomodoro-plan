@@ -613,7 +613,7 @@ main {
   background: var(--color-accent);
 }
 
-.new-week-action {
+.clear-reload-action {
   flex: 0 0 auto;
   min-height: 32px;
   padding: 2px 0 2px 12px;
@@ -624,11 +624,11 @@ main {
   font-weight: 700;
 }
 
-.new-week-action:hover {
+.clear-reload-action:hover {
   color: var(--ink);
 }
 
-.new-week-action:focus-visible {
+.clear-reload-action:focus-visible {
   outline: 2px solid rgba(77, 127, 214, 0.5);
   outline-offset: 4px;
   border-radius: 4px;
@@ -1157,7 +1157,7 @@ main {
   padding-top: 14px;
 }
 
-.new-week-confirm-action {
+.clear-reload-confirm-action {
   width: min(760px, 100%);
   margin-top: 14px;
 }
@@ -2249,6 +2249,114 @@ main {
   text-align: center;
 }
 
+.writing-dog-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+}
+
+.writing-dog-empty .notes-empty {
+  margin: 0;
+}
+
+.writing-dog-animation {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #fff;
+  isolation: isolate;
+}
+
+.writing-dog-base,
+.writing-dog-paper,
+.writing-dog-paw,
+.writing-dog-paw img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.writing-dog-base,
+.writing-dog-paw img {
+  display: block;
+  object-fit: contain;
+}
+
+.writing-dog-paper {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.writing-dog-paper-cover {
+  fill: #fffdf4;
+  opacity: 0.93;
+}
+
+.writing-dog-ink {
+  animation: writing-dog-ink-cycle 8s ease-in-out infinite;
+}
+
+.writing-dog-line {
+  fill: none;
+  stroke: #25231f;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: writing-dog-line-reveal 8s linear infinite;
+  animation-delay: calc(var(--line-index) * 1.45s);
+}
+
+.writing-dog-paw {
+  z-index: 2;
+  clip-path: polygon(27% 42%, 39% 43%, 41% 66%, 36% 68%, 33% 61%, 29% 59%);
+  transform-origin: 37% 64%;
+  animation: writing-dog-stroke 2s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@keyframes writing-dog-stroke {
+  0%,
+  100% {
+    transform: translate3d(-3px, -2px, 0) rotate(-0.35deg);
+  }
+  50% {
+    transform: translate3d(4px, 4px, 0) rotate(0.35deg);
+  }
+}
+
+@keyframes writing-dog-line-reveal {
+  0%,
+  8% {
+    stroke-dashoffset: 1;
+  }
+  31%,
+  86% {
+    stroke-dashoffset: 0;
+  }
+  92%,
+  100% {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes writing-dog-ink-cycle {
+  0%,
+  84% {
+    opacity: 1;
+  }
+  92%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .task-subtask-sheet h2 {
   margin: 8px 0 10px;
   font-size: 22px;
@@ -3033,6 +3141,9 @@ main {
   .focus-finish-countdown,
   .focus-finished-label,
   .focus-complete-reveal,
+  .writing-dog-ink,
+  .writing-dog-line,
+  .writing-dog-paw,
   .nav-tabs::after,
   .nav-tab.active,
   .app-toast,
@@ -3152,7 +3263,7 @@ main {
     gap: 12px;
   }
 
-  .new-week-action {
+  .clear-reload-action {
     padding-left: 4px;
   }
 
