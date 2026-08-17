@@ -25,6 +25,20 @@ export function getIsoWeek(dateInput = new Date()) {
   return { key, weekNumber, start, end };
 }
 
+function markBestWeeks(weeks, now) {
+  const chronological = [...weeks]
+    .filter((week) => week.precise)
+    .sort((a, b) => a.start - b.start);
+  let historicalHigh = -1;
+
+  chronological.forEach((week, index) => {
+    const ended = week.end < now;
+    week.best = ended && index > 0 && week.completed >= historicalHigh;
+    week.tiedBest = week.best && week.completed === historicalHigh;
+    historicalHigh = Math.max(historicalHigh, week.completed);
+  });
+}
+
 export function normalizeCompletionLogCategories(logs, categoryIdByName) {
   return logs.map((log) => ({
     ...log,
@@ -66,38 +80,82 @@ export function buildWeeklyHistory(logs, taskHistory = [], now = new Date()) {
   });
 
   const precise = [...preciseWeeks.values()].sort((a, b) => a.start - b.start);
-  let historicalHigh = -1;
-  precise.forEach((week, index) => {
+  precise.forEach((week) => {
     week.hasCompleteFocusMinutes = week.missingMinutesCount === 0;
-    const ended = week.end < now;
-    week.best = ended && index > 0 && week.completed >= historicalHigh;
-    week.tiedBest = week.best && week.completed === historicalHigh;
-    historicalHigh = Math.max(historicalHigh, week.completed);
     week.topCategory = Object.entries(week.categoryCounts).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] || null;
   });
+  markBestWeeks(precise, now);
 
   return [...precise, ...legacyWeeks.values()].sort((a, b) => b.start - a.start);
 }
 
-export function selectCurrentWeekCompletionData(history, completed, now = new Date()) {
+export function applyWeeklySnapshots(
+  history,
+  snapshots,
+  remainingCount,
+  now = new Date(),
+) {
+  const currentWeekKey = getIsoWeek(now).key;
+  const snapshotsByWeek = new Map(
+    snapshots.map((snapshot) => [snapshot.week_start_date, snapshot]),
+  );
+  const merged = history.map((week) => {
+    if (!week.precise) return week;
+    const snapshot = week.key === currentWeekKey ? null : snapshotsByWeek.get(week.key);
+    if (snapshot) {
+      return {
+        ...week,
+        completed: Number(snapshot.completed_count),
+        totalCount: Number(snapshot.total_count),
+        completionRate: Number(snapshot.completion_rate),
+        focusMinutes: Number(snapshot.focus_minutes),
+        snapshot: true,
+      };
+    }
+
+    const totalCount = remainingCount + week.completed;
+    return {
+      ...week,
+      totalCount,
+      completionRate: totalCount ? Math.round((week.completed / totalCount) * 100) : 100,
+      snapshot: false,
+    };
+  });
+  markBestWeeks(merged, now);
+  return merged;
+}
+
+export function selectCurrentWeekCompletionData(
+  history,
+  completed,
+  stateWeekStartDate,
+  now = new Date(),
+) {
   const currentWeek = getIsoWeek(now);
   const loggedWeek = history.find(
     (week) => week.key === currentWeek.key && week.precise,
   );
+  const canUseState = stateWeekStartDate === currentWeek.key;
   return {
     currentWeek,
     loggedWeek,
-    completions: loggedWeek?.logs || completed,
-    source: loggedWeek ? "logs" : "state",
+    completions: loggedWeek?.logs || (canUseState ? completed : []),
+    source: loggedWeek ? "logs" : canUseState ? "state" : "empty",
   };
 }
 
-export function overlayCurrentWeekState(history, completed, now = new Date()) {
+export function overlayCurrentWeekState(
+  history,
+  completed,
+  stateWeekStartDate,
+  now = new Date(),
+) {
   const { currentWeek, loggedWeek: existing } = selectCurrentWeekCompletionData(
     history,
     completed,
+    stateWeekStartDate,
     now,
   );
   if (existing) {
@@ -111,7 +169,7 @@ export function overlayCurrentWeekState(history, completed, now = new Date()) {
       ...history.filter((week) => week.key !== currentWeek.key),
     ];
   }
-  if (!existing && !completed.length) return history;
+  if (!existing && (stateWeekStartDate !== currentWeek.key || !completed.length)) return history;
 
   const categoryCounts = completed.reduce((counts, task) => {
     counts[task.category] = (counts[task.category] || 0) + 1;

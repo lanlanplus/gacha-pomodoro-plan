@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   activeCategoryStats,
+  applyWeeklySnapshots,
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyHighlights,
@@ -248,6 +249,7 @@ test("prefers current-week logs over state completions", () => {
       { category: "study" },
       { category: "life" },
     ],
+    "2026-06-22",
     new Date("2026-06-24T10:00:00+08:00"),
   );
 
@@ -261,6 +263,7 @@ test("prefers current-week logs over state completions", () => {
   const selected = selectCurrentWeekCompletionData(
     history,
     [{ category: "study" }],
+    "2026-06-22",
     new Date("2026-06-24T10:00:00+08:00"),
   );
   assert.equal(selected.source, "logs");
@@ -280,6 +283,7 @@ test("keeps logged counts, categories, and focus minutes when state is reset", (
   const displayed = overlayCurrentWeekState(
     history,
     [],
+    "2026-06-22",
     new Date("2026-06-24T10:00:00+08:00"),
   );
 
@@ -304,6 +308,7 @@ test("keeps all logged stats after a same-week reset and a new state completion"
   const displayed = overlayCurrentWeekState(
     history,
     [{ category: "study", minutes: 15 }],
+    "2026-06-22",
     new Date("2026-06-24T10:30:00+08:00"),
   );
 
@@ -321,6 +326,7 @@ test("falls back to local state stats when no current-week logs exist", () => {
       { category: "study", minutes: 12 },
       { category: "life", minutes: 18 },
     ],
+    "2026-06-22",
     new Date("2026-06-24T10:00:00+08:00"),
   );
 
@@ -333,8 +339,73 @@ test("falls back to local state stats when no current-week logs exist", () => {
   const selected = selectCurrentWeekCompletionData(
     [],
     [{ category: "study", minutes: 12 }],
+    "2026-06-22",
     new Date("2026-06-24T10:00:00+08:00"),
   );
   assert.equal(selected.source, "state");
   assert.deepEqual(selected.completions, [{ category: "study", minutes: 12 }]);
+});
+
+test("does not use stale state completions after a natural week rollover", () => {
+  const selected = selectCurrentWeekCompletionData(
+    [],
+    [{ category: "study", minutes: 12 }],
+    "2026-06-15",
+    new Date("2026-06-24T10:00:00+08:00"),
+  );
+
+  assert.equal(selected.source, "empty");
+  assert.deepEqual(selected.completions, []);
+  assert.deepEqual(
+    overlayCurrentWeekState(
+      [],
+      [{ category: "study", minutes: 12 }],
+      "2026-06-15",
+      new Date("2026-06-24T10:00:00+08:00"),
+    ),
+    [],
+  );
+});
+
+test("prefers frozen snapshots and gives pre-snapshot weeks a live denominator fallback", () => {
+  const now = new Date("2026-06-24T10:00:00+08:00");
+  const history = buildWeeklyHistory(
+    [
+      ...Array.from({ length: 2 }, () => ({
+        category: "work",
+        minutes: 25,
+        completed_at: "2026-06-08T10:00:00+08:00",
+      })),
+      ...Array.from({ length: 22 }, () => ({
+        category: "study",
+        minutes: 10,
+        completed_at: "2026-06-15T10:00:00+08:00",
+      })),
+    ],
+    [],
+    now,
+  );
+  const result = applyWeeklySnapshots(
+    history,
+    [{
+      week_start_date: "2026-06-15",
+      completed_count: 22,
+      total_count: 30,
+      completion_rate: 73,
+      focus_minutes: 220,
+    }],
+    6,
+    now,
+  );
+
+  const frozen = result.find((week) => week.key === "2026-06-15");
+  assert.equal(frozen.snapshot, true);
+  assert.equal(frozen.completionRate, 73);
+  assert.equal(frozen.totalCount, 30);
+  assert.equal(frozen.focusMinutes, 220);
+
+  const legacyFallback = result.find((week) => week.key === "2026-06-08");
+  assert.equal(legacyFallback.snapshot, false);
+  assert.equal(legacyFallback.totalCount, 8);
+  assert.equal(legacyFallback.completionRate, 25);
 });

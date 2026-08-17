@@ -15,6 +15,7 @@ import {
 import { runtimeConfig } from "./runtimeConfig.js";
 import {
   activeCategoryStats,
+  applyWeeklySnapshots,
   buildCategoryStats,
   buildFocusStory,
   buildWeeklyHighlights,
@@ -61,6 +62,7 @@ const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
 const appStateTable = "user_app_states";
 const completionLogTable = "task_completion_log";
+const weeklySnapshotTable = "weekly_snapshots";
 const { initialTimerMinutes, treeStageSeconds } = runtimeConfig;
 const defaultDailyTarget = 3;
 const minDailyTarget = 1;
@@ -118,6 +120,7 @@ function seedState() {
       makeTask("写一个小点子", "creative"),
     ],
     completed: [],
+    weekStartDate: null,
     dailyDraws: [],
     dailyTarget: defaultDailyTarget,
     specialEnabled: true,
@@ -175,6 +178,10 @@ function normalizeState(parsed) {
   const state = parsed ? { ...seeded, ...parsed } : seeded;
   return {
     ...state,
+    weekStartDate:
+      typeof state.weekStartDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(state.weekStartDate)
+        ? state.weekStartDate
+        : null,
     dailyDraws: Array.isArray(state.dailyDraws) ? state.dailyDraws : [],
     tasks: Array.isArray(state.tasks)
       ? state.tasks.map((task) => ({
@@ -265,6 +272,7 @@ export default function App() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskHistory, setTaskHistory] = useState(loadTaskHistory);
   const [taskCompletionLogs, setTaskCompletionLogs] = useState([]);
+  const [weeklySnapshots, setWeeklySnapshots] = useState([]);
   const [summaryMode, setSummaryMode] = useState("current");
   const [selectedHistoryWeekKey, setSelectedHistoryWeekKey] = useState(null);
   const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
@@ -320,6 +328,7 @@ export default function App() {
       setRemoteReady(!nextSession);
       setRemoteLoadedUserId(null);
       setTaskCompletionLogs([]);
+      setWeeklySnapshots([]);
       setAuthLoading(false);
     });
 
@@ -339,7 +348,7 @@ export default function App() {
     async function loadRemoteState() {
       const { data, error } = await supabase
         .from(appStateTable)
-        .select("app_state, weekend_categories, task_history")
+        .select("app_state, weekend_categories, task_history, week_start_date")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -352,7 +361,12 @@ export default function App() {
         return;
       }
 
-      if (data?.app_state) setState(normalizeState(data.app_state));
+      if (data?.app_state) {
+        setState(normalizeState({
+          ...data.app_state,
+          weekStartDate: data.week_start_date || data.app_state.weekStartDate || null,
+        }));
+      }
       if (data?.weekend_categories) setWeekendCategories(normalizeWeekendCategories(data.weekend_categories));
       if (data?.task_history) setTaskHistory(normalizeTaskHistory(data.task_history));
 
@@ -367,10 +381,22 @@ export default function App() {
         setTaskCompletionLogs(completionLogs || []);
       }
 
+      const { data: snapshots, error: snapshotsError } = await supabase
+        .from(weeklySnapshotTable)
+        .select("week_start_date, completed_count, total_count, completion_rate, focus_minutes, created_at")
+        .eq("user_id", userId)
+        .order("week_start_date", { ascending: true });
+      if (snapshotsError) {
+        setNotice(`周快照读取失败：${snapshotsError.message}`);
+      } else {
+        setWeeklySnapshots(snapshots || []);
+      }
+
       if (!data) {
         const { error: insertError } = await supabase.from(appStateTable).insert({
           user_id: userId,
           app_state: stateRef.current,
+          week_start_date: stateRef.current.weekStartDate || null,
           weekend_categories: weekendCategoriesRef.current,
           task_history: taskHistoryRef.current,
         });
@@ -396,6 +422,7 @@ export default function App() {
       const { error } = await supabase.from(appStateTable).upsert({
         user_id: userId,
         app_state: state,
+        week_start_date: state.weekStartDate || null,
         weekend_categories: weekendCategories,
         task_history: taskHistory,
       });
@@ -490,13 +517,22 @@ export default function App() {
     [taskCompletionLogs],
   );
   const currentWeekKey = getIsoWeek().key;
-  const weeklyHistory = useMemo(
+  const loggedWeeklyHistory = useMemo(
     () => buildWeeklyHistory(normalizedCompletionLogs, taskHistory),
     [normalizedCompletionLogs, taskHistory],
+  );
+  const weeklyHistory = useMemo(
+    () => applyWeeklySnapshots(
+      loggedWeeklyHistory,
+      weeklySnapshots,
+      state.tasks.length,
+    ),
+    [loggedWeeklyHistory, weeklySnapshots, state.tasks.length],
   );
   const currentWeekCompletionData = selectCurrentWeekCompletionData(
     weeklyHistory,
     state.completed,
+    state.weekStartDate,
   );
   const currentWeekCompletions = currentWeekCompletionData.completions;
   const weekStats = useMemo(() => {
@@ -522,8 +558,8 @@ export default function App() {
     [weekStats.percent, categoryStats],
   );
   const displayedWeeklyHistory = useMemo(
-    () => overlayCurrentWeekState(weeklyHistory, state.completed),
-    [weeklyHistory, state.completed],
+    () => overlayCurrentWeekState(weeklyHistory, state.completed, state.weekStartDate),
+    [weeklyHistory, state.completed, state.weekStartDate],
   );
   const preciseWeeks = weeklyHistory.filter((week) => week.precise);
   const activeWeekCount = preciseWeeks.length;
@@ -801,13 +837,16 @@ export default function App() {
     const completedAt = new Date().toISOString();
     setState((currentState) => {
       const latestCurrent = currentState.current?.id === current.id ? currentState.current : current;
-      return settleCompletedTask(currentState, latestCurrent, {
-        id: latestCurrent.id,
-        name: latestCurrent.name,
-        category: latestCurrent.category,
-        minutes,
-        completedAt,
-      });
+      return {
+        ...settleCompletedTask(currentState, latestCurrent, {
+          id: latestCurrent.id,
+          name: latestCurrent.name,
+          category: latestCurrent.category,
+          minutes,
+          completedAt,
+        }),
+        weekStartDate: getIsoWeek(completedAt).key,
+      };
     });
     void writeCompletionLog({
       taskName: current.name,
@@ -1522,9 +1561,9 @@ export default function App() {
 
               <div className="section-head compact summary-history-head">
                 <h3>完成记录</h3>
-                <span>{state.completed.length} 次完成</span>
+                <span>{currentWeekCompletions.length} 次完成</span>
               </div>
-              <SummaryList completed={state.completed} />
+              <SummaryList completed={currentWeekCompletions} />
             </>
           )}
 
@@ -2511,8 +2550,12 @@ function WeeklyHistoryList({ history, categories, currentWeekKey, currentPercent
                     <span>完成 {week.completed} 颗</span>
                     <small>{category ? `${category.name}投入最多` : "暂无分类记录"}</small>
                   </span>
-                  <strong className={`history-week-percent ${isCurrent ? "" : "is-unavailable"}`}>
-                    {isCurrent ? `${currentPercent}%` : "—"}
+                  <strong className="history-week-percent">
+                    {isCurrent
+                      ? `${currentPercent}%`
+                      : Number.isFinite(week.completionRate)
+                        ? `${Math.round(week.completionRate)}%`
+                        : "—"}
                   </strong>
                 </>
               ) : (
@@ -2567,9 +2610,13 @@ function WeeklyHistoryDetail({
         <p>{formatWeekRange(week.start, week.end)}</p>
       </header>
       <WeeklyOverview
-        percent={isCurrent ? currentStats.percent : null}
+        percent={isCurrent ? currentStats.percent : week.completionRate}
         done={week.completed}
-        remaining={isCurrent ? currentStats.total - week.completed : null}
+        remaining={isCurrent
+          ? currentStats.total - week.completed
+          : Number.isFinite(week.totalCount)
+            ? Math.max(0, week.totalCount - week.completed)
+            : null}
         focusMinutes={week.focusMinutes}
         hasCompleteFocusMinutes={week.hasCompleteFocusMinutes}
         missingMinutesCount={week.missingMinutesCount}
