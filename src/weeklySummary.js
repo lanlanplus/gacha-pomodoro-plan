@@ -115,6 +115,15 @@ export function applyWeeklySnapshots(
       };
     }
 
+    if (week.key !== currentWeekKey) {
+      return {
+        ...week,
+        totalCount: null,
+        completionRate: null,
+        snapshot: false,
+      };
+    }
+
     const totalCount = remainingCount + week.completed;
     return {
       ...week,

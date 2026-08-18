@@ -367,7 +367,7 @@ test("does not use stale state completions after a natural week rollover", () =>
   );
 });
 
-test("prefers frozen snapshots and gives pre-snapshot weeks a live denominator fallback", () => {
+test("prefers frozen snapshots and leaves pre-snapshot historical rates unavailable", () => {
   const now = new Date("2026-06-24T10:00:00+08:00");
   const history = buildWeeklyHistory(
     [
@@ -381,6 +381,11 @@ test("prefers frozen snapshots and gives pre-snapshot weeks a live denominator f
         minutes: 10,
         completed_at: "2026-06-15T10:00:00+08:00",
       })),
+      {
+        category: "health",
+        minutes: 15,
+        completed_at: "2026-06-23T10:00:00+08:00",
+      },
     ],
     [],
     now,
@@ -406,6 +411,15 @@ test("prefers frozen snapshots and gives pre-snapshot weeks a live denominator f
 
   const legacyFallback = result.find((week) => week.key === "2026-06-08");
   assert.equal(legacyFallback.snapshot, false);
-  assert.equal(legacyFallback.totalCount, 8);
-  assert.equal(legacyFallback.completionRate, 25);
+  assert.equal(legacyFallback.totalCount, null);
+  assert.equal(legacyFallback.completionRate, null);
+  const legacyAfterAddingBalls = applyWeeklySnapshots(history, [], 100, now)
+    .find((week) => week.key === "2026-06-08");
+  assert.equal(legacyAfterAddingBalls.totalCount, null);
+  assert.equal(legacyAfterAddingBalls.completionRate, null);
+
+  const current = result.find((week) => week.key === "2026-06-22");
+  assert.equal(current.snapshot, false);
+  assert.equal(current.totalCount, 7);
+  assert.equal(current.completionRate, 14);
 });

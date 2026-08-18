@@ -2622,6 +2622,11 @@ function WeeklyHistoryDetail({
         missingMinutesCount={week.missingMinutesCount}
         best={week.best}
       />
+      {!isCurrent && !week.snapshot && (
+        <p className="history-detail-note">
+          该周数据早于精确统计上线，无法还原完成率。
+        </p>
+      )}
       <section className="summary-categories">
         <div className="section-head compact"><h3>分类分布</h3></div>
         <div className="history-category-list">
