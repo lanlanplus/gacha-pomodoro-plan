@@ -42,6 +42,7 @@ function markBestWeeks(weeks, now) {
 export function normalizeCompletionLogCategories(logs, categoryIdByName) {
   return logs.map((log) => ({
     ...log,
+    name: log.name || log.task_name,
     category: categoryIdByName[log.category] || log.category,
   }));
 }

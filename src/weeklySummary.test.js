@@ -167,6 +167,15 @@ test("maps persisted category names back to category ids", () => {
   ]);
 });
 
+test("maps persisted task names to completion names", () => {
+  const [normalized] = normalizeCompletionLogCategories(
+    [{ task_name: "看书", category: "study" }],
+    {},
+  );
+
+  assert.equal(normalized.name, "看书");
+});
+
 test("returns no weekly history for a new user without logs or legacy activity", () => {
   assert.deepEqual(buildWeeklyHistory([], []), []);
 });
