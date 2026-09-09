@@ -569,8 +569,11 @@ export default function App() {
   );
   const completedToday = useMemo(
     () =>
-      state.completed.filter((item) => new Date(item.completedAt).toLocaleDateString("en-CA") === currentDate).length,
-    [state.completed, currentDate],
+      currentWeekCompletions.filter((item) => {
+        const timestamp = item.completed_at || item.completedAt;
+        return timestamp && todayKey(new Date(timestamp)) === currentDate;
+      }).length,
+    [currentWeekCompletions, currentDate],
   );
   const suggestedToday = state.dailyTarget;
   const todayGoalReached = completedToday >= suggestedToday;
