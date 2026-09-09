@@ -1,5 +1,3 @@
-const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-
 export function getIsoWeek(dateInput = new Date()) {
   const date = new Date(dateInput);
   const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -326,7 +324,8 @@ export function groupCompletedTasks(completed) {
   completed.forEach((item) => {
     const key = item.name.trim().toLowerCase();
     const existing = groups.get(key);
-    const date = new Date(item.completedAt);
+    const timestamp = item.completed_at || item.completedAt;
+    const date = timestamp ? new Date(timestamp) : new Date(NaN);
     if (existing) {
       existing.count += 1;
       existing.minutes += item.minutes;
@@ -346,15 +345,21 @@ export function groupCompletedTasks(completed) {
 
   return [...groups.values()]
     .map((group) => {
-      const dates = group.dates.sort((a, b) => a - b);
-      const firstDate = dates[0];
+      const dates = group.dates.filter((date) => Number.isFinite(date.getTime())).sort((a, b) => a - b);
       const lastDate = dates[dates.length - 1];
-      const firstDay = weekdayNames[firstDate.getDay()];
-      const lastDay = weekdayNames[lastDate.getDay()];
+      const missingCount = group.count - dates.length;
+      let dateLabel = "完成时间未知";
+      if (lastDate) {
+        const pad = (value) => String(value).padStart(2, "0");
+        const time = `${lastDate.getFullYear()}/${pad(lastDate.getMonth() + 1)}/${pad(lastDate.getDate())} ${pad(lastDate.getHours())}:${pad(lastDate.getMinutes())}:${pad(lastDate.getSeconds())}`;
+        const prefix = group.count === 1 ? "完成于" : missingCount ? "最近已知完成" : "最近完成";
+        dateLabel = `${prefix}：${time}`;
+        if (missingCount) dateLabel += `（${missingCount} 次完成时间未知）`;
+      }
       return {
         ...group,
-        dateLabel: firstDate.toDateString() === lastDate.toDateString() ? `${firstDay}完成` : `${firstDay}至${lastDay}完成`,
-        latestAt: lastDate.getTime(),
+        dateLabel,
+        latestAt: lastDate ? lastDate.getTime() : -Infinity,
       };
     })
     .sort((a, b) => b.latestAt - a.latestAt);

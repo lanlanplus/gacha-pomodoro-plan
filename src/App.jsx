@@ -1,3 +1,4 @@
+import { startFocusSession, advanceFocusSession, pauseFocusSession, resumeFocusSession, completionFromFocusSession, readFocusSession, saveFocusSession } from "./focusSession.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildFocusConfetti,
@@ -281,7 +282,6 @@ export default function App() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [timerFinished, setTimerFinished] = useState(false);
-  const [elapsedBeforeStart, setElapsedBeforeStart] = useState(0);
   const [hasDistracted, setHasDistracted] = useState(false);
   const [treeGrowthStartRemaining, setTreeGrowthStartRemaining] = useState(
     initialTimerMinutes * 60,
@@ -293,7 +293,8 @@ export default function App() {
   const [pendingPrize, setPendingPrize] = useState(null);
   const drawSequenceRef = useRef(0);
   const intervalRef = useRef(null);
-  const startedAtRef = useRef(null);
+  const focusSessionRef = useRef(null);
+  const restoredFocusOwnerRef = useRef(null);
   const audioRef = useRef(null);
   const wakeLockControllerRef = useRef(null);
   const timerRemainingRef = useRef(initialTimerMinutes * 60);
@@ -495,22 +496,69 @@ export default function App() {
   }, [showQuickCapture]);
 
   useEffect(() => {
-    if (!timerRunning) return undefined;
-    startedAtRef.current = Date.now();
-    intervalRef.current = window.setInterval(() => {
-      setTimerRemaining((remaining) => {
-        if (remaining <= 1) {
-          finishTimer();
-          return 0;
-        }
-        return remaining - 1;
-      });
-    }, 1000);
+    if (authLoading || !remoteReady) return;
+    const owner = session?.user?.id || "guest";
+    if (restoredFocusOwnerRef.current === owner) return;
+    restoredFocusOwnerRef.current = owner;
+    focusSessionRef.current = null;
+    setTimerRunning(false);
+    setTimerFinished(false);
+    setFocusMode(false);
+    const saved = readFocusSession(localStorage, owner);
+    const task = saved && state.tasks.find((item) => item.id === saved.taskId);
+    if (!task) {
+      persistFocusSession(null);
+      setTimerRemaining(initialTimerMinutes * 60);
+      setTimerMinutes(initialTimerMinutes);
+      return;
+    }
+    const restored = advanceFocusSession(saved);
+    persistFocusSession(restored);
+    setState((value) => ({ ...value, current: { ...task, kind: "task" } }));
+    setMachineMode("current");
+    setFocusMode(true);
+    setHasDistracted(true);
+    hasDistractedRef.current = true;
+    showFocusSession(restored);
+    setTreeGrowthStartRemaining(Math.ceil(restored.remainingMs / 1000));
+    if (restored.status === "running") void wakeLockControllerRef.current?.activate();
+  }, [authLoading, remoteReady, session?.user?.id]);
 
+  useEffect(() => {
+    if (!timerRunning) return undefined;
+    const update = () => {
+      const current = focusSessionRef.current;
+      if (!current || current.status !== "running") return;
+      const next = advanceFocusSession(current);
+      if (next.status === "finished") finishTimer(next);
+      else showFocusSession(next);
+    };
+    intervalRef.current = window.setInterval(update, 1000);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("pageshow", update);
+    update();
     return () => {
       window.clearInterval(intervalRef.current);
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("pageshow", update);
     };
   }, [timerRunning]);
+
+  function persistFocusSession(value) {
+    focusSessionRef.current = value;
+    try {
+      saveFocusSession(localStorage, restoredFocusOwnerRef.current || session?.user?.id || "guest", value);
+    } catch {
+      setNotice("计时状态无法保存到本机，关闭应用后可能无法恢复。");
+    }
+  }
+
+  function showFocusSession(value) {
+    setTimerMinutes(value.durationMs / 60000);
+    setTimerRemaining(Math.ceil(value.remainingMs / 1000));
+    setTimerFinished(value.status === "finished");
+    setTimerRunning(value.status === "running");
+  }
 
   const normalizedCompletionLogs = useMemo(
     () => normalizeCompletionLogCategories(taskCompletionLogs, categoryIdByName),
@@ -584,10 +632,10 @@ export default function App() {
   function resetTimer(minutes = timerMinutes) {
     const safeMinutes = Math.min(120, Math.max(1, Number(minutes) || initialTimerMinutes));
     stopTimer();
+    persistFocusSession(null);
     setTimerMinutes(safeMinutes);
     setTimerRemaining(safeMinutes * 60);
     setTimerFinished(false);
-    setElapsedBeforeStart(0);
     hasDistractedRef.current = false;
     setHasDistracted(false);
     setTreeGrowthStartRemaining(safeMinutes * 60);
@@ -627,10 +675,10 @@ export default function App() {
     window.clearInterval(intervalRef.current);
     setTimerRunning(false);
     void wakeLockControllerRef.current?.setRunning(false);
-    if (startedAtRef.current) {
-      const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
-      setElapsedBeforeStart((value) => value + elapsed);
-      startedAtRef.current = null;
+    if (focusSessionRef.current) {
+      const paused = pauseFocusSession(focusSessionRef.current);
+      persistFocusSession(paused);
+      showFocusSession(paused);
     }
   }
 
@@ -675,11 +723,11 @@ export default function App() {
     }
   }
 
-  function finishTimer() {
-    stopTimer();
+  function finishTimer(value) {
+    window.clearInterval(intervalRef.current);
+    persistFocusSession(value);
+    showFocusSession(value);
     void wakeLockControllerRef.current?.release();
-    setTimerRemaining(0);
-    setTimerFinished(true);
     playSound("finish");
   }
 
@@ -687,9 +735,13 @@ export default function App() {
     if (!state.current || state.current.kind !== "task") return;
     getAudioContext();
     void wakeLockControllerRef.current?.activate();
+    const saved = focusSessionRef.current;
+    const next = saved?.taskId === state.current.id
+      ? advanceFocusSession(resumeFocusSession(saved))
+      : startFocusSession(state.current.id, timerMinutes);
+    persistFocusSession(next);
+    showFocusSession(next);
     setFocusMode(true);
-    setTimerFinished(false);
-    if (!timerRunning) setTimerRunning(true);
   }
 
   function drawTask() {
@@ -834,10 +886,12 @@ export default function App() {
     if (!current || current.kind !== "task") return;
     stopTimer();
     void wakeLockControllerRef.current?.release();
-    const elapsed = Math.max(elapsedBeforeStart, timerMinutes * 60 - timerRemaining);
-    const minutes = Math.max(1, Math.round(elapsed / 60));
+    const completion = completionFromFocusSession(
+      focusSessionRef.current?.taskId === current.id ? focusSessionRef.current : null,
+    );
+    const { completedAt, minutes } = completion;
+    if (completion.usedFallback) setNotice("未找到可恢复的计时状态，本次按点击时间记录，专注时长按最低 1 分钟计。");
 
-    const completedAt = new Date().toISOString();
     setState((currentState) => {
       const latestCurrent = currentState.current?.id === current.id ? currentState.current : current;
       return {
@@ -1036,6 +1090,7 @@ export default function App() {
         timerText={timerText}
         timerRunning={timerRunning}
         timerFinished={timerFinished}
+        notice={notice}
         timerMinutes={timerMinutes}
         treeStage={getFocusTreeStage(
           treeGrowthStartRemaining,
@@ -2072,6 +2127,7 @@ function TaskSubtaskSheet({ task, notes, onAdd, onToggle, onAttach, onClose }) {
 }
 
 function FocusMode({
+  notice,
   current,
   timerText,
   timerRunning,
@@ -2185,11 +2241,17 @@ function FocusMode({
         )}
       </section>
 
+      {notice && <p role="status">{notice}</p>}
       <div className="focus-actions" onClick={() => setShowSubtasks(false)}>
         {timerFinished ? (
-          <button className="focus-complete-action focus-complete-reveal" type="button" onClick={onComplete}>
-            完成这颗球 ✓
-          </button>
+          <>
+            <button className="focus-complete-action focus-complete-reveal" type="button" onClick={onComplete}>
+              完成这颗球 ✓
+            </button>
+            <button className="focus-abandon-action" type="button" onClick={onAbandon}>
+              放回扭蛋机
+            </button>
+          </>
         ) : (
           <>
             <button className="focus-primary-action" type="button" onClick={timerRunning ? onPause : onContinue}>

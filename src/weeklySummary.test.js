@@ -122,7 +122,8 @@ test("groups same-name records and keeps accurate accumulated minutes", () => {
   ]);
   assert.equal(grouped[0].count, 2);
   assert.equal(grouped[0].minutes, 50);
-  assert.equal(grouped[0].dateLabel, "周一至周四完成");
+  assert.match(grouped[0].dateLabel, /^最近完成：2026\/06\/18 /);
+  assert.equal(grouped[0].latestAt, Date.parse("2026-06-18T10:00:00+08:00"));
 });
 
 test("groups completion logs by local ISO week and keeps legacy weeks imprecise", () => {
