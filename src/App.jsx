@@ -1131,6 +1131,22 @@ export default function App() {
               ✎
             </button>
             <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
+            {!session?.user?.email && (
+              <GuestAuthEntry>
+                <AuthPanel
+                  session={session}
+                  email={authEmail}
+                  password={authPassword}
+                  mode={authMode}
+                  loading={authLoading}
+                  submitting={authSubmitting}
+                  onEmailChange={setAuthEmail}
+                  onPasswordChange={setAuthPassword}
+                  onModeChange={setAuthMode}
+                  onSubmit={submitAuth}
+                />
+              </GuestAuthEntry>
+            )}
           </div>
         </div>
 
@@ -1146,19 +1162,6 @@ export default function App() {
             {weekStats.done} / {weekStats.total} 颗球
           </p>
         </div>
-
-        <AuthPanel
-          session={session}
-          email={authEmail}
-          password={authPassword}
-          mode={authMode}
-          loading={authLoading}
-          submitting={authSubmitting}
-          onEmailChange={setAuthEmail}
-          onPasswordChange={setAuthPassword}
-          onModeChange={setAuthMode}
-          onSubmit={submitAuth}
-        />
       </aside>
 
       <main>
@@ -1761,6 +1764,73 @@ function normalizeWeekendCategories(value) {
   const validIds = categories.map((category) => category.id);
   const selected = Array.isArray(value) ? value.filter((id) => validIds.includes(id)) : validIds;
   return selected.length ? selected : [];
+}
+
+function GuestAuthEntry({ children }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+  const buttonRef = useRef(null);
+  const panelRef = useRef(null);
+
+  function closePanel() {
+    setOpen(false);
+    buttonRef.current?.focus({ preventScroll: true });
+  }
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    panelRef.current?.focus({ preventScroll: true });
+    function handlePointerDown(event) {
+      if (!wrapperRef.current?.contains(event.target)) setOpen(false);
+    }
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus({ preventScroll: true });
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="account-wrapper" ref={wrapperRef}>
+      <button
+        className="account-avatar-btn"
+        ref={buttonRef}
+        type="button"
+        aria-label="登录或注册"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? "guestAuthPanel" : undefined}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="avatar-letter" aria-hidden="true">L</span>
+      </button>
+      {open && (
+        <section
+          className="account-dropdown guest-auth-dropdown"
+          id="guestAuthPanel"
+          ref={panelRef}
+          role="dialog"
+          aria-label="登录或注册"
+          tabIndex={-1}
+        >
+          <div className="guest-auth-heading">
+            <strong>账号同步</strong>
+            <button type="button" aria-label="关闭登录面板" onClick={closePanel}>×</button>
+          </div>
+          {children}
+        </section>
+      )}
+    </div>
+  );
 }
 
 function AuthPanel({

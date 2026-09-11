@@ -1,0 +1,170 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index 5bf5ba0..f5fa362 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -1131,6 +1131,22 @@ export default function App() {
+               ✎
+             </button>
+             <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
++            {!session?.user?.email && (
++              <GuestAuthEntry>
++                <AuthPanel
++                  session={session}
++                  email={authEmail}
++                  password={authPassword}
++                  mode={authMode}
++                  loading={authLoading}
++                  submitting={authSubmitting}
++                  onEmailChange={setAuthEmail}
++                  onPasswordChange={setAuthPassword}
++                  onModeChange={setAuthMode}
++                  onSubmit={submitAuth}
++                />
++              </GuestAuthEntry>
++            )}
+           </div>
+         </div>
+ 
+@@ -1146,19 +1162,6 @@ export default function App() {
+             {weekStats.done} / {weekStats.total} 颗球
+           </p>
+         </div>
+-
+-        <AuthPanel
+-          session={session}
+-          email={authEmail}
+-          password={authPassword}
+-          mode={authMode}
+-          loading={authLoading}
+-          submitting={authSubmitting}
+-          onEmailChange={setAuthEmail}
+-          onPasswordChange={setAuthPassword}
+-          onModeChange={setAuthMode}
+-          onSubmit={submitAuth}
+-        />
+       </aside>
+ 
+       <main>
+@@ -1763,6 +1766,73 @@ function normalizeWeekendCategories(value) {
+   return selected.length ? selected : [];
+ }
+ 
++function GuestAuthEntry({ children }) {
++  const [open, setOpen] = useState(false);
++  const wrapperRef = useRef(null);
++  const buttonRef = useRef(null);
++  const panelRef = useRef(null);
++
++  function closePanel() {
++    setOpen(false);
++    buttonRef.current?.focus({ preventScroll: true });
++  }
++
++  useEffect(() => {
++    if (!open) return undefined;
++
++    panelRef.current?.focus({ preventScroll: true });
++    function handlePointerDown(event) {
++      if (!wrapperRef.current?.contains(event.target)) setOpen(false);
++    }
++    function handleKeyDown(event) {
++      if (event.key === "Escape") {
++        event.preventDefault();
++        setOpen(false);
++        buttonRef.current?.focus({ preventScroll: true });
++      }
++    }
++    document.addEventListener("pointerdown", handlePointerDown);
++    document.addEventListener("keydown", handleKeyDown);
++    return () => {
++      document.removeEventListener("pointerdown", handlePointerDown);
++      document.removeEventListener("keydown", handleKeyDown);
++    };
++  }, [open]);
++
++  return (
++    <div className="account-wrapper" ref={wrapperRef}>
++      <button
++        className="account-avatar-btn"
++        ref={buttonRef}
++        type="button"
++        aria-label="登录或注册"
++        aria-haspopup="dialog"
++        aria-expanded={open}
++        aria-controls={open ? "guestAuthPanel" : undefined}
++        onClick={() => setOpen((value) => !value)}
++      >
++        <span className="avatar-letter" aria-hidden="true">L</span>
++      </button>
++      {open && (
++        <section
++          className="account-dropdown guest-auth-dropdown"
++          id="guestAuthPanel"
++          ref={panelRef}
++          role="dialog"
++          aria-label="登录或注册"
++          tabIndex={-1}
++        >
++          <div className="guest-auth-heading">
++            <strong>账号同步</strong>
++            <button type="button" aria-label="关闭登录面板" onClick={closePanel}>×</button>
++          </div>
++          {children}
++        </section>
++      )}
++    </div>
++  );
++}
++
+ function AuthPanel({
+   session,
+   email,
+diff --git a/styles.css b/styles.css
+index c42d1c6..e90cf61 100644
+--- a/styles.css
++++ b/styles.css
+@@ -187,6 +187,44 @@ button {
+   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+ }
+ 
++.guest-auth-dropdown {
++  width: min(320px, calc(100vw - 36px));
++  max-height: calc(100dvh - 100px);
++  overflow-y: auto;
++  overscroll-behavior: contain;
++}
++
++@media (min-width: 901px) {
++  .guest-auth-dropdown {
++    width: 220px;
++  }
++}
++
++.guest-auth-heading {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  margin-bottom: 10px;
++  color: var(--color-text-primary);
++  font-size: 14px;
++}
++
++.guest-auth-heading button {
++  width: 32px;
++  height: 32px;
++  border: 0;
++  border-radius: 50%;
++  background: transparent;
++  color: var(--color-text-secondary);
++  font-size: 22px;
++}
++
++.guest-auth-dropdown .auth-panel {
++  padding: 0;
++  border: 0;
++  background: transparent;
++}
++
+ .account-email {
+   margin-bottom: 4px;
+   color: var(--color-text-primary);
