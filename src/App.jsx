@@ -1109,7 +1109,13 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${view === "machine" && !showCurrentPanel ? "home-scene" : ""}`}>
+      {view === "machine" && !showCurrentPanel && (
+        <picture className="home-background" aria-hidden="true">
+          <source media="(max-width: 900px)" srcSet="/images/bg/background-mobile.png" />
+          <img src="/images/bg/background-web.png" alt="" />
+        </picture>
+      )}
       <aside className="sidebar" aria-label="主导航">
         <div className="brand">
           <div className="brand-title">
@@ -1189,6 +1195,24 @@ export default function App() {
                   </button>
                 </div>
 
+                <div className="home-machine-scene">
+                  <div className="home-decor" aria-hidden="true">
+                    <div className="home-ground" />
+                    {["block-green", "block-tricolor", "flower-1", "flower-2", "heart-1", "heart-2", "leaf", "ribbon-blue", "ribbon-brown"].map((name) => (
+                      <img key={name} className={`home-decor-item home-decor-${name}`} src={`/images/decor/${name}.png`} alt="" />
+                    ))}
+                    {["flower-1", "leaf", "ribbon-blue"].map((name) => (
+                      <img key={`repeat-${name}`} className={`home-decor-item home-repeat-${name}`} src={`/images/decor/${name}.png`} alt="" />
+                    ))}
+                    <span className="home-note">Cheerful<img src="/images/decor/heart-2.png" alt="" /></span>
+                    <span className="home-spark home-spark-left" />
+                    <span className="home-spark home-spark-right" />
+                    {["yellow", "blue", "pink", "purple", "mint", "pink"].map((color, index) => (
+                      <span key={`${color}-${index}`} className={`home-floor-ball home-floor-ball-${index}`}>
+                        <img src={`/assets/task-ball-${color}.png`} alt="" />
+                      </span>
+                    ))}
+                  </div>
                 <div className="gacha-wrap">
                   <div
                     className={`gacha-machine ${drawInProgress ? "has-turned" : ""} ${
@@ -1257,6 +1281,7 @@ export default function App() {
                     </strong>
                     <span>{state.tasks.length ? "让下一件事自己出现" : "先添加任务球再来扭"}</span>
                   </div>
+                </div>
                 </div>
               </section>
             )}

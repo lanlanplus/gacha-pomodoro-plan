@@ -1,0 +1,136 @@
+--- before/src/App.jsx
++++ after/src/App.jsx
+@@ -1200,6 +1200,17 @@
+                     <div className="home-ground" />
+                     {["block-green", "block-tricolor", "flower-1", "flower-2", "heart-1", "heart-2", "leaf", "ribbon-blue", "ribbon-brown"].map((name) => (
+                       <img key={name} className={`home-decor-item home-decor-${name}`} src={`/images/decor/${name}.png`} alt="" />
++                    ))}
++                    {["flower-1", "leaf", "ribbon-blue"].map((name) => (
++                      <img key={`repeat-${name}`} className={`home-decor-item home-repeat-${name}`} src={`/images/decor/${name}.png`} alt="" />
++                    ))}
++                    <span className="home-note">Cheerful<img src="/images/decor/heart-2.png" alt="" /></span>
++                    <span className="home-spark home-spark-left" />
++                    <span className="home-spark home-spark-right" />
++                    {["yellow", "blue", "pink", "purple", "mint", "pink"].map((color, index) => (
++                      <span key={`${color}-${index}`} className={`home-floor-ball home-floor-ball-${index}`}>
++                        <img src={`/assets/task-ball-${color}.png`} alt="" />
++                      </span>
+                     ))}
+                   </div>
+                 <div className="gacha-wrap">
+--- before/styles.css
++++ after/styles.css
+@@ -3409,8 +3409,8 @@
+   transform: translateX(-50%) rotate(var(--tilt, 0deg));
+ }
+ 
+-.home-decor-block-green { --x: 5%; --y: -54px; --size: 160px; z-index: 1; }
+-.home-decor-block-tricolor { --x: calc(100% + 65px); --y: -195px; --size: 150px; z-index: 1; }
++.home-decor-block-green { --x: -2%; --y: -85px; --size: 270px; height: 390px; z-index: 1; }
++.home-decor-block-tricolor { --x: 102%; --y: -220px; --size: 300px; height: 310px; z-index: 1; }
+ .home-decor-item:not(.home-decor-block-green):not(.home-decor-block-tricolor) {
+   opacity: 0.55;
+   filter: saturate(0.75);
+@@ -3427,35 +3427,34 @@
+   z-index: 1;
+ }
+ 
+-/* Extend the contact shadow past the opaque machine base so it stays visible. */
++/* A shallow warm contact patch touches the base, like the reference illustration. */
+ .home-scene .gacha-machine::before {
+   content: "";
+   position: absolute;
+   z-index: 0;
+-  left: 10%;
+-  right: 6%;
+-  bottom: 6%;
+-  height: 8%;
+-  background:
+-    radial-gradient(ellipse at 46% 42%, rgba(85, 60, 36, 0.62), transparent 56%),
+-    radial-gradient(ellipse at 57% 58%, rgba(123, 83, 45, 0.38), transparent 70%);
+-  filter: blur(3px);
+-  transform: skewX(-12deg);
++  left: 13%;
++  right: 12%;
++  bottom: 8%;
++  height: 5.5%;
++  border-radius: 50%;
++  background: #efba91;
++  opacity: 0.65;
++  box-shadow: inset 0 3px 0 rgba(169, 112, 69, 0.12);
+   pointer-events: none;
+ }
+ 
+ @media (max-width: 900px) {
+   .home-scene .machine-stage { padding-inline: 0; }
+   .home-machine-scene { margin-top: 20px; }
+-  .home-decor-block-green { --x: 14%; --size: 130px; }
+-  .home-decor-block-tricolor { --x: 88%; --y: -155px; --size: 140px; }
++  .home-decor-block-green { --x: -2%; --y: -95px; --size: 200px; height: 330px; }
++  .home-decor-block-tricolor { --x: 100%; --y: -200px; --size: 270px; height: 280px; }
+ }
+ 
+ @media (max-width: 560px) {
+   .home-scene .stage-copy h2 { font-size: clamp(24px, 6.4vw, 34px); }
+   .home-scene .today-rhythm { min-width: 0; width: 100%; }
+   .home-scene .clear-reload-action { font-size: 12px; }
+-  .home-decor-block-tricolor { --x: 86%; --y: -132px; --size: 130px; }
++  .home-decor-block-tricolor { --x: 92%; --y: -164px; --size: 260px; height: 230px; }
+   .home-decor-flower-1 { --x: 14%; --size: 96px; }
+   .home-decor-flower-2 { --x: 89%; --size: 78px; }
+   .home-decor-heart-1 { --x: 85%; --size: 76px; }
+@@ -3465,3 +3464,54 @@
+   .home-decor-ribbon-brown { --x: 13%; --size: 100px; }
+   .home-ground { top: calc(100% - 90px); }
+ }
++
++/* Repeated scrapbook accents and resting capsules, all presentation-only. */
++.home-decor-flower-1 { --x: 11%; --y: -5%; }
++.home-decor-flower-2 { --x: 87%; --y: 27%; }
++.home-decor-heart-1 { --x: 79%; --y: 10%; --size: 65px; }
++.home-decor-heart-2 { --x: 10%; --y: 47%; }
++.home-decor-leaf { --x: 17%; --y: 22%; }
++.home-decor-ribbon-blue { --x: 7%; --y: 60%; }
++.home-decor-ribbon-brown { --x: 86%; --y: -7%; }
++.home-repeat-flower-1 { --x: 15%; --y: 68%; --size: 100px; }
++.home-repeat-leaf { --x: 88%; --y: 51%; --size: 85px; }
++.home-repeat-ribbon-blue { --x: 91%; --y: 66%; --size: 95px; --tilt: -65deg; }
++.home-note {
++  position: absolute;
++  z-index: 1;
++  left: 79%;
++  top: 37%;
++  width: 110px;
++  padding: 12px 6px 8px;
++  border: 2px solid #deb295;
++  border-radius: 5px;
++  background: #fffaf0;
++  color: #cd9a7b;
++  font-size: 18px;
++  font-weight: 700;
++  text-align: center;
++  transform: rotate(12deg);
++}
++.home-note img { display: block; width: 28px; margin: 3px auto 0; opacity: 0.6; }
++.home-spark { position: absolute; width: 25px; height: 28px; border-left: 5px solid #ddb598; transform: rotate(25deg); opacity: 0.65; }
++.home-spark::after { content: ""; position: absolute; width: 5px; height: 21px; left: 9px; top: 7px; background: #ddb598; transform: rotate(25deg); border-radius: 4px; }
++.home-spark-left { left: 22%; top: 9%; }
++.home-spark-right { right: 11%; top: 73%; transform: rotate(-35deg); }
++.home-floor-ball { position: absolute; z-index: 3; width: clamp(65px, 8vw, 110px); left: var(--ball-x); bottom: var(--ball-bottom, 30px); transform: translateX(-50%); }
++.home-floor-ball::before { content: ""; position: absolute; left: -3%; width: 106%; bottom: -3%; height: 20%; border-radius: 50%; background: #efba91; opacity: 0.6; }
++.home-floor-ball img { position: relative; display: block; width: 100%; clip-path: circle(48% at 50% 50%); transform: rotate(var(--ball-tilt, 0deg)); }
++.home-floor-ball-0 { --ball-x: 4%; --ball-bottom: 65px; --ball-tilt: -15deg; }
++.home-floor-ball-1 { --ball-x: 0%; --ball-bottom: 20px; --ball-tilt: 12deg; }
++.home-floor-ball-2 { --ball-x: 12%; --ball-bottom: 35px; --ball-tilt: -20deg; }
++.home-floor-ball-3 { --ball-x: 96%; --ball-bottom: 65px; --ball-tilt: 15deg; }
++.home-floor-ball-4 { --ball-x: 86%; --ball-bottom: 25px; --ball-tilt: -12deg; }
++.home-floor-ball-5 { --ball-x: 102%; --ball-bottom: 15px; --ball-tilt: 20deg; }
++@media (max-width: 560px) {
++  .home-note { left: 80%; top: 37%; width: 66px; padding: 9px 3px 4px; font-size: 11px; }
++  .home-note img { width: 21px; }
++  .home-repeat-flower-1 { --size: 75px; }
++  .home-repeat-leaf { --size: 60px; }
++  .home-repeat-ribbon-blue { --size: 70px; }
++  .home-decor-heart-1 { --size: 52px; }
++  .home-spark { scale: 0.7; }
++}

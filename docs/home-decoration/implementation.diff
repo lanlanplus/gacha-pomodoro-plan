@@ -1,0 +1,168 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index f5fa362..973bb1f 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -1109,7 +1109,13 @@ export default function App() {
+   }
+ 
+   return (
+-    <div className="app-shell">
++    <div className={`app-shell ${view === "machine" && !showCurrentPanel ? "home-scene" : ""}`}>
++      {view === "machine" && !showCurrentPanel && (
++        <picture className="home-background" aria-hidden="true">
++          <source media="(max-width: 900px)" srcSet="/images/bg/background-mobile.png" />
++          <img src="/images/bg/background-web.png" alt="" />
++        </picture>
++      )}
+       <aside className="sidebar" aria-label="主导航">
+         <div className="brand">
+           <div className="brand-title">
+@@ -1189,6 +1195,13 @@ export default function App() {
+                   </button>
+                 </div>
+ 
++                <div className="home-machine-scene">
++                  <div className="home-decor" aria-hidden="true">
++                    <div className="home-ground" />
++                    {["block-green", "block-tricolor", "flower-1", "flower-2", "heart-1", "heart-2", "leaf", "ribbon-blue", "ribbon-brown"].map((name) => (
++                      <img key={name} className={`home-decor-item home-decor-${name}`} src={`/images/decor/${name}.png`} alt="" />
++                    ))}
++                  </div>
+                 <div className="gacha-wrap">
+                   <div
+                     className={`gacha-machine ${drawInProgress ? "has-turned" : ""} ${
+@@ -1258,6 +1271,7 @@ export default function App() {
+                     <span>{state.tasks.length ? "让下一件事自己出现" : "先添加任务球再来扭"}</span>
+                   </div>
+                 </div>
++                </div>
+               </section>
+             )}
+ 
+diff --git a/styles.css b/styles.css
+index e90cf61..4f21173 100644
+--- a/styles.css
++++ b/styles.css
+@@ -3341,3 +3341,122 @@ main {
+     width: 100%;
+   }
+ }
++
++/* Homepage artwork: backdrop < ground < blocks < stickers < machine / copy. */
++.home-scene {
++  position: relative;
++  isolation: isolate;
++  overflow: clip;
++}
++
++.home-background {
++  position: absolute;
++  inset: 0;
++  z-index: -2;
++  pointer-events: none;
++}
++
++.home-background img {
++  width: 100%;
++  height: 100%;
++  object-fit: cover;
++}
++
++.home-scene .machine-stage {
++  overflow: visible;
++  border: 0;
++  background: transparent;
++  box-shadow: none;
++}
++
++.home-scene .stage-copy {
++  position: relative;
++  z-index: 2;
++}
++
++.home-machine-scene {
++  position: relative;
++  width: 100%;
++  margin-top: 12px;
++}
++
++.home-decor {
++  position: absolute;
++  inset: 0;
++  pointer-events: none;
++  user-select: none;
++}
++
++.home-ground {
++  position: absolute;
++  z-index: -1;
++  top: calc(100% - 105px);
++  left: 50%;
++  width: 200vw;
++  height: 100vh;
++  /* The painted strip occupies the bottom sixth of the source canvas. */
++  background: url("/images/decor/band-gradient.png") center bottom / 100% 600% no-repeat;
++  mask-image: linear-gradient(to bottom, transparent, black 24px);
++  transform: translateX(-50%);
++}
++
++.home-decor-item {
++  position: absolute;
++  z-index: 2;
++  width: var(--size, 110px);
++  height: auto;
++  left: var(--x);
++  top: var(--y);
++  transform: translateX(-50%) rotate(var(--tilt, 0deg));
++}
++
++.home-decor-block-green { --x: 12%; --y: 0%; --size: 240px; --tilt: -12deg; z-index: 1; }
++.home-decor-block-tricolor { --x: 86%; --y: 1%; --size: 250px; --tilt: 10deg; z-index: 1; }
++.home-decor-flower-1 { --x: 19%; --y: 9%; --size: 130px; --tilt: -14deg; }
++.home-decor-flower-2 { --x: 82%; --y: 52%; --size: 105px; --tilt: 12deg; }
++.home-decor-heart-1 { --x: 80%; --y: 15%; --size: 105px; --tilt: 15deg; }
++.home-decor-heart-2 { --x: 15%; --y: 57%; --size: 85px; --tilt: -18deg; }
++.home-decor-leaf { --x: 17%; --y: 36%; --size: 100px; --tilt: -12deg; }
++.home-decor-ribbon-blue { --x: 83%; --y: 33%; --size: 145px; --tilt: -18deg; }
++.home-decor-ribbon-brown { --x: 22%; --y: 73%; --size: 140px; --tilt: 12deg; }
++
++.home-scene .gacha-wrap {
++  z-index: 1;
++}
++
++/* Two feathered, uneven pools of warm contact shadow blend into the ground. */
++.home-scene .gacha-machine::before {
++  content: "";
++  position: absolute;
++  z-index: 0;
++  left: 22%;
++  right: 15%;
++  bottom: 6%;
++  height: 10%;
++  background:
++    radial-gradient(ellipse at 43% 52%, rgba(108, 76, 45, 0.25), transparent 58%),
++    radial-gradient(ellipse at 62% 62%, rgba(134, 91, 53, 0.18), transparent 68%);
++  filter: blur(9px);
++  transform: skewX(-16deg);
++}
++
++@media (max-width: 900px) {
++  .home-scene .machine-stage { padding-inline: 0; }
++  .home-machine-scene { margin-top: 20px; }
++  .home-decor-block-green { --size: clamp(130px, 29vw, 220px); }
++  .home-decor-block-tricolor { --size: clamp(140px, 30vw, 230px); }
++}
++
++@media (max-width: 560px) {
++  .home-scene .stage-copy h2 { font-size: clamp(24px, 6.4vw, 34px); }
++  .home-scene .today-rhythm { min-width: 0; width: 100%; }
++  .home-scene .clear-reload-action { font-size: 12px; }
++  .home-decor-flower-1 { --x: 14%; --size: 96px; }
++  .home-decor-flower-2 { --x: 89%; --size: 78px; }
++  .home-decor-heart-1 { --x: 85%; --size: 76px; }
++  .home-decor-heart-2 { --x: 9%; --size: 66px; }
++  .home-decor-leaf { --x: 10%; --size: 75px; }
++  .home-decor-ribbon-blue { --x: 88%; --size: 92px; }
++  .home-decor-ribbon-brown { --x: 13%; --size: 100px; }
++  .home-ground { top: calc(100% - 90px); }
++}
