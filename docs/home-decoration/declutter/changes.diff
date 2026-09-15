@@ -1,0 +1,73 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index c3ce7ba..8f0efbc 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -1201,12 +1201,6 @@ export default function App() {
+                     {["block-green", "block-tricolor", "flower-1", "flower-2", "heart-1", "heart-2", "leaf", "ribbon-blue", "ribbon-brown"].map((name) => (
+                       <img key={name} className={`home-decor-item home-decor-${name}`} src={`/images/decor/${name}.png`} alt="" />
+                     ))}
+-                    {["flower-1", "leaf", "ribbon-blue"].map((name) => (
+-                      <img key={`repeat-${name}`} className={`home-decor-item home-repeat-${name}`} src={`/images/decor/${name}.png`} alt="" />
+-                    ))}
+-                    <span className="home-note">Cheerful<img src="/images/decor/heart-2.png" alt="" /></span>
+-                    <span className="home-spark home-spark-left" />
+-                    <span className="home-spark home-spark-right" />
+                     {["yellow", "blue", "pink", "purple", "mint", "pink"].map((color, index) => (
+                       <span key={`${color}-${index}`} className={`home-floor-ball home-floor-ball-${index}`}>
+                         <img src={`/assets/task-ball-${color}.png`} alt="" />
+diff --git a/styles.css b/styles.css
+index 4592139..27549f9 100644
+--- a/styles.css
++++ b/styles.css
+@@ -3465,7 +3465,7 @@ main {
+   .home-ground { top: calc(100% - 90px); }
+ }
+ 
+-/* Repeated scrapbook accents and resting capsules, all presentation-only. */
++/* Sparse stickers around the machine and resting capsules below it. */
+ .home-decor-flower-1 { --x: 11%; --y: -5%; }
+ .home-decor-flower-2 { --x: 87%; --y: 27%; }
+ .home-decor-heart-1 { --x: 79%; --y: 10%; --size: 65px; }
+@@ -3473,30 +3473,6 @@ main {
+ .home-decor-leaf { --x: 17%; --y: 22%; }
+ .home-decor-ribbon-blue { --x: 7%; --y: 60%; }
+ .home-decor-ribbon-brown { --x: 86%; --y: -7%; }
+-.home-repeat-flower-1 { --x: 15%; --y: 68%; --size: 100px; }
+-.home-repeat-leaf { --x: 88%; --y: 51%; --size: 85px; }
+-.home-repeat-ribbon-blue { --x: 91%; --y: 66%; --size: 95px; --tilt: -65deg; }
+-.home-note {
+-  position: absolute;
+-  z-index: 1;
+-  left: 79%;
+-  top: 37%;
+-  width: 110px;
+-  padding: 12px 6px 8px;
+-  border: 2px solid #deb295;
+-  border-radius: 5px;
+-  background: #fffaf0;
+-  color: #cd9a7b;
+-  font-size: 18px;
+-  font-weight: 700;
+-  text-align: center;
+-  transform: rotate(12deg);
+-}
+-.home-note img { display: block; width: 28px; margin: 3px auto 0; opacity: 0.6; }
+-.home-spark { position: absolute; width: 25px; height: 28px; border-left: 5px solid #ddb598; transform: rotate(25deg); opacity: 0.65; }
+-.home-spark::after { content: ""; position: absolute; width: 5px; height: 21px; left: 9px; top: 7px; background: #ddb598; transform: rotate(25deg); border-radius: 4px; }
+-.home-spark-left { left: 22%; top: 9%; }
+-.home-spark-right { right: 11%; top: 73%; transform: rotate(-35deg); }
+ .home-floor-ball { position: absolute; z-index: 3; width: min(67.4px, 13.13vw); left: var(--ball-x); bottom: var(--ball-bottom, 30px); transform: translateX(-50%); }
+ .home-floor-ball::before { content: ""; position: absolute; left: -3%; width: 106%; bottom: -3%; height: 20%; border-radius: 50%; background: #efba91; opacity: 0.6; }
+ .home-floor-ball img { position: relative; display: block; width: 100%; clip-path: circle(48% at 50% 50%); transform: rotate(var(--ball-tilt, 0deg)); }
+@@ -3507,11 +3483,5 @@ main {
+ .home-floor-ball-4 { --ball-x: 86%; --ball-bottom: 25px; --ball-tilt: -12deg; }
+ .home-floor-ball-5 { --ball-x: 102%; --ball-bottom: 15px; --ball-tilt: 20deg; }
+ @media (max-width: 560px) {
+-  .home-note { left: 80%; top: 37%; width: 66px; padding: 9px 3px 4px; font-size: 11px; }
+-  .home-note img { width: 21px; }
+-  .home-repeat-flower-1 { --size: 75px; }
+-  .home-repeat-leaf { --size: 60px; }
+-  .home-repeat-ribbon-blue { --size: 70px; }
+   .home-decor-heart-1 { --size: 52px; }
+-  .home-spark { scale: 0.7; }
+ }

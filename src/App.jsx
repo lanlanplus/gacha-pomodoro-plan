@@ -1201,12 +1201,6 @@ export default function App() {
                     {["block-green", "block-tricolor", "flower-1", "flower-2", "heart-1", "heart-2", "leaf", "ribbon-blue", "ribbon-brown"].map((name) => (
                       <img key={name} className={`home-decor-item home-decor-${name}`} src={`/images/decor/${name}.png`} alt="" />
                     ))}
-                    {["flower-1", "leaf", "ribbon-blue"].map((name) => (
-                      <img key={`repeat-${name}`} className={`home-decor-item home-repeat-${name}`} src={`/images/decor/${name}.png`} alt="" />
-                    ))}
-                    <span className="home-note">Cheerful<img src="/images/decor/heart-2.png" alt="" /></span>
-                    <span className="home-spark home-spark-left" />
-                    <span className="home-spark home-spark-right" />
                     {["yellow", "blue", "pink", "purple", "mint", "pink"].map((color, index) => (
                       <span key={`${color}-${index}`} className={`home-floor-ball home-floor-ball-${index}`}>
                         <img src={`/assets/task-ball-${color}.png`} alt="" />
