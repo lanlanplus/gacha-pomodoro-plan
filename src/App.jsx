@@ -39,6 +39,17 @@ import {
   toggleSubtaskInState,
 } from "./subtasks.js";
 import { supabase } from "./utils/supabase.js";
+import {
+  completionStickerWindow,
+  groupCompletionsByDate,
+  hundredBallMilestone,
+  localDateKey,
+  mergeCompletionHistory,
+  monthGrid,
+  normalizeCompletionHistory,
+  shiftMonth,
+  summarizeCompletionDay,
+} from "./monthlyJournal.js";
 
 const categories = [
   { id: "work", name: "工作", color: "#4d7fd6" },
@@ -61,6 +72,7 @@ const specials = [
 const storageKey = "gacha-pomodoro-week-plan";
 const weekendCategoriesKey = "gacha-pomodoro-weekend-categories";
 const taskHistoryKey = "gacha-pomodoro-task-history";
+const completionHistoryKey = "gacha-pomodoro-completion-history";
 const appStateTable = "user_app_states";
 const completionLogTable = "task_completion_log";
 const weeklySnapshotTable = "weekly_snapshots";
@@ -97,6 +109,14 @@ const ballAssets = {
   study: "/assets/task-ball-yellow.png",
   life: "/assets/task-ball-purple.png",
   creative: "/assets/task-ball-pink.png",
+};
+
+const journalBallAssets = {
+  work: "/assets/task-ball-striped-blue.png",
+  health: "/assets/task-ball-striped-mint.png",
+  study: "/assets/task-ball-striped-yellow.png",
+  life: "/assets/task-ball-striped-purple.png",
+  creative: "/assets/task-ball-striped-pink.png",
 };
 
 function makeTask(name, category, dailyExclusive = false, subtasks = []) {
@@ -155,6 +175,15 @@ function loadTaskHistory() {
     return normalizeTaskHistory(JSON.parse(localStorage.getItem(taskHistoryKey)));
   } catch {
     return [];
+  }
+}
+
+function loadCompletionHistory(fallback = []) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(completionHistoryKey));
+    return mergeCompletionHistory(stored, fallback);
+  } catch {
+    return normalizeCompletionHistory(fallback);
   }
 }
 
@@ -272,9 +301,16 @@ export default function App() {
   const [attachNoteId, setAttachNoteId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskHistory, setTaskHistory] = useState(loadTaskHistory);
+  const [completionHistory, setCompletionHistory] = useState(() =>
+    loadCompletionHistory(state.completed),
+  );
   const [taskCompletionLogs, setTaskCompletionLogs] = useState([]);
   const [weeklySnapshots, setWeeklySnapshots] = useState([]);
   const [summaryMode, setSummaryMode] = useState("current");
+  const [journalMonth, setJournalMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12),
+  );
+  const [selectedJournalDate, setSelectedJournalDate] = useState(todayKey);
   const [selectedHistoryWeekKey, setSelectedHistoryWeekKey] = useState(null);
   const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
   const [timerMinutes, setTimerMinutes] = useState(initialTimerMinutes);
@@ -454,6 +490,15 @@ export default function App() {
   }, [taskHistory]);
 
   useEffect(() => {
+    localStorage.setItem(completionHistoryKey, JSON.stringify(completionHistory));
+  }, [completionHistory]);
+
+  useEffect(() => {
+    if (!state.completed.length) return;
+    setCompletionHistory((history) => mergeCompletionHistory(history, state.completed));
+  }, [state.completed]);
+
+  useEffect(() => {
     timerRemainingRef.current = timerRemaining;
   }, [timerRemaining]);
 
@@ -563,6 +608,18 @@ export default function App() {
   const normalizedCompletionLogs = useMemo(
     () => normalizeCompletionLogCategories(taskCompletionLogs, categoryIdByName),
     [taskCompletionLogs],
+  );
+  const journalCompletions = useMemo(
+    () => mergeCompletionHistory(completionHistory, normalizedCompletionLogs),
+    [completionHistory, normalizedCompletionLogs],
+  );
+  const journalCompletionsByDate = useMemo(
+    () => groupCompletionsByDate(journalCompletions),
+    [journalCompletions],
+  );
+  const journalMilestone = useMemo(
+    () => hundredBallMilestone(journalCompletions),
+    [journalCompletions],
   );
   const currentWeekKey = getIsoWeek().key;
   const loggedWeeklyHistory = useMemo(
@@ -905,6 +962,13 @@ export default function App() {
         weekStartDate: getIsoWeek(completedAt).key,
       };
     });
+    setCompletionHistory((history) => mergeCompletionHistory(history, [{
+      id: current.id,
+      name: current.name,
+      category: current.category,
+      minutes,
+      completedAt,
+    }]));
     void writeCompletionLog({
       taskName: current.name,
       category: current.category,
@@ -1601,15 +1665,40 @@ export default function App() {
 
         <section id="summary" className={`view ${view === "summary" ? "active" : ""}`} aria-labelledby="summaryTitle">
           <div className="section-head">
-            <p className="eyebrow">{summaryMode === "current" ? "WEEKLY REVIEW" : "WEEKLY HISTORY"}</p>
-            <h2 id="summaryTitle">{summaryMode === "current" ? "周总结" : "历史周记录"}</h2>
+            <p className="eyebrow">
+              {summaryMode === "current"
+                ? "WEEKLY REVIEW"
+                : summaryMode === "journal"
+                  ? "MONTHLY JOURNAL"
+                  : "WEEKLY HISTORY"}
+            </p>
+            <h2 id="summaryTitle">
+              {summaryMode === "current"
+                ? "周总结"
+                : summaryMode === "journal"
+                  ? "手帐月历"
+                  : "历史周记录"}
+            </h2>
           </div>
 
           {summaryMode === "current" && (
             <>
               <div className="summary-toolbar">
                 <span className="week-tag">第 {activeWeekCount} 周</span>
-                <button type="button" onClick={() => setSummaryMode("history")}>查看历史 ›</button>
+                <div className="summary-toolbar-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      setJournalMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
+                      setSelectedJournalDate(todayKey(today));
+                      setSummaryMode("journal");
+                    }}
+                  >
+                    手帐月历 ›
+                  </button>
+                  <button type="button" onClick={() => setSummaryMode("history")}>查看历史 ›</button>
+                </div>
               </div>
               <p className="weekly-message">{weeklyMessage}</p>
 
@@ -1668,6 +1757,22 @@ export default function App() {
               currentWeekKey={currentWeekKey}
               currentStats={weekStats}
               onBack={() => setSummaryMode("history")}
+            />
+          )}
+
+          {summaryMode === "journal" && (
+            <MonthlyJournal
+              month={journalMonth}
+              completionsByDate={journalCompletionsByDate}
+              milestone={journalMilestone}
+              selectedDate={selectedJournalDate}
+              onSelectDate={setSelectedJournalDate}
+              onChangeMonth={(amount) => {
+                const nextMonth = shiftMonth(journalMonth, amount);
+                setJournalMonth(nextMonth);
+                setSelectedJournalDate(localDateKey(nextMonth));
+              }}
+              onBack={() => setSummaryMode("current")}
             />
           )}
         </section>
@@ -2813,6 +2918,184 @@ function formatWeekRange(start, end) {
       ? `${endDate.getMonth() + 1}.${endDate.getDate()}`
       : `${endDate.getFullYear()}.${endDate.getMonth() + 1}.${endDate.getDate()}`;
   return `${startText} – ${endText}`;
+}
+
+const journalStickerLayouts = {
+  1: [{ x: 50, y: 52, r: -4 }],
+  2: [{ x: 42, y: 50, r: -8 }, { x: 59, y: 57, r: 7 }],
+  3: [{ x: 37, y: 48, r: -9 }, { x: 55, y: 47, r: 5 }, { x: 48, y: 64, r: -3 }],
+  4: [{ x: 35, y: 45, r: -8 }, { x: 56, y: 44, r: 7 }, { x: 40, y: 64, r: 5 }, { x: 61, y: 63, r: -7 }],
+  5: [{ x: 31, y: 43, r: -9 }, { x: 50, y: 39, r: 5 }, { x: 68, y: 47, r: 9 }, { x: 39, y: 65, r: 6 }, { x: 59, y: 66, r: -7 }],
+  6: [{ x: 29, y: 41, r: -9 }, { x: 49, y: 37, r: 4 }, { x: 68, y: 44, r: 9 }, { x: 31, y: 63, r: 7 }, { x: 51, y: 61, r: -5 }, { x: 69, y: 66, r: 8 }],
+  7: [{ x: 26, y: 39, r: -10 }, { x: 45, y: 35, r: 3 }, { x: 64, y: 40, r: 9 }, { x: 31, y: 58, r: 7 }, { x: 51, y: 55, r: -5 }, { x: 70, y: 59, r: 8 }, { x: 50, y: 72, r: 2 }],
+  8: [{ x: 25, y: 37, r: -10 }, { x: 44, y: 33, r: 3 }, { x: 63, y: 38, r: 9 }, { x: 28, y: 56, r: 7 }, { x: 48, y: 53, r: -5 }, { x: 68, y: 56, r: 8 }, { x: 39, y: 71, r: -6 }, { x: 59, y: 70, r: 5 }],
+};
+
+function JournalStickerStack({ entries, trophy = false }) {
+  const { visible } = completionStickerWindow(entries);
+  const layout = journalStickerLayouts[visible.length] || [];
+
+  return (
+    <div className="journal-sticker-stack" aria-hidden="true">
+      {visible.map((entry, index) => {
+        const position = layout[index];
+        return (
+          <img
+            key={`${entry.id}-${entry.completedAt}-${index}`}
+            className="journal-ball-sticker"
+            src={journalBallAssets[entry.category] || journalBallAssets.work}
+            alt=""
+            style={{
+              "--sticker-x": `${position.x}%`,
+              "--sticker-y": `${position.y}%`,
+              "--sticker-r": `${position.r}deg`,
+              "--sticker-layer": index + 1,
+            }}
+          />
+        );
+      })}
+      {trophy && (
+        <img className="journal-trophy-sticker" src="/assets/milestone-trophy-100.png" alt="" />
+      )}
+    </div>
+  );
+}
+
+function formatJournalDate(dateKey) {
+  if (!dateKey) return "选择一天";
+  const [, month, day] = dateKey.split("-").map(Number);
+  return `${month} 月 ${day} 日`;
+}
+
+function formatCompletionTime(timestamp) {
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : "时间未知";
+}
+
+function JournalDayDetail({ dateKey, entries }) {
+  const summary = summarizeCompletionDay(entries);
+  const dominant = summary.dominantCategory ? categoryById(summary.dominantCategory) : null;
+
+  return (
+    <section className="journal-day-detail" aria-live="polite">
+      <header>
+        <span>{formatJournalDate(dateKey)}</span>
+        <strong>{summary.count ? `完成 ${summary.count} 颗` : "还没有贴纸"}</strong>
+      </header>
+      {summary.count ? (
+        <>
+          <div className="journal-day-focus">
+            <img src={journalBallAssets[dominant?.id] || journalBallAssets.work} alt="" />
+            <p>
+              <span>今日投入最多</span>
+              <strong>{dominant?.name || "未分类"} · {formatMinutes(summary.categoryTotals[dominant?.id]?.minutes || 0)}</strong>
+            </p>
+          </div>
+          <p className="journal-day-total">全天共专注 {formatMinutes(summary.minutes)}</p>
+          <div className="journal-completion-list">
+            {[...summary.entries].reverse().map((entry) => {
+              const category = categoryById(entry.category);
+              return (
+                <div key={`${entry.id}-${entry.completedAt}`} className="journal-completion-row">
+                  <img src={journalBallAssets[entry.category] || journalBallAssets.work} alt="" />
+                  <span>
+                    <strong>{entry.name}</strong>
+                    <small>{category.name} · {formatCompletionTime(entry.completedAt)}</small>
+                  </span>
+                  <b>{Number.isFinite(entry.minutes) ? formatMinutes(entry.minutes) : "时长未知"}</b>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="journal-empty-day">完成一颗任务球后，贴纸会自动出现在这里。</p>
+      )}
+    </section>
+  );
+}
+
+function MonthlyJournal({
+  month,
+  completionsByDate,
+  milestone,
+  selectedDate,
+  onSelectDate,
+  onChangeMonth,
+  onBack,
+}) {
+  const cells = monthGrid(month);
+  const selectedEntries = completionsByDate[selectedDate] || [];
+  const monthLabel = `${month.getFullYear()} 年 ${month.getMonth() + 1} 月`;
+  const milestoneDate = milestone?.dateKey;
+
+  return (
+    <div className="monthly-journal">
+      <button className="history-back" type="button" onClick={onBack}>‹ 返回周总结</button>
+      <div className="journal-layout">
+        <div className="journal-calendar-panel">
+          <div className="journal-month-switcher">
+            <button type="button" onClick={() => onChangeMonth(-1)} aria-label="上个月">‹</button>
+            <strong>{monthLabel}</strong>
+            <button type="button" onClick={() => onChangeMonth(1)} aria-label="下个月">›</button>
+          </div>
+          <div className="journal-weekdays" aria-hidden="true">
+            {["一", "二", "三", "四", "五", "六", "日"].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="journal-grid">
+            {cells.map((cell, index) => {
+              if (!cell) return <span className="journal-day is-empty" key={`empty-${index}`} />;
+              const entries = completionsByDate[cell.key] || [];
+              const { hiddenCount } = completionStickerWindow(entries);
+              const isSelected = cell.key === selectedDate;
+              const hasTrophy = cell.key === milestoneDate;
+              return (
+                <button
+                  className={`journal-day ${isSelected ? "is-selected" : ""}`}
+                  type="button"
+                  key={cell.key}
+                  onClick={() => onSelectDate(cell.key)}
+                  aria-label={`${formatJournalDate(cell.key)}，完成 ${entries.length} 颗${hasTrophy ? "，百球达成" : ""}`}
+                >
+                  <span className="journal-day-number">{cell.day}</span>
+                  {entries.length > 0 && <JournalStickerStack entries={entries} trophy={hasTrophy} />}
+                  {entries.length >= 5 && (
+                    <span className="journal-day-count">
+                      {hiddenCount ? `+${hiddenCount}` : `${entries.length}颗`}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="journal-sidebar">
+          <JournalDayDetail dateKey={selectedDate} entries={selectedEntries} />
+          {milestone && (
+            <section className="journal-milestone-card">
+              <img src="/assets/milestone-trophy-100.png" alt="百球奖杯" />
+              <span>
+                <strong>百球达成</strong>
+                <small>自 2026 年 9 月起累计完成第 100 颗任务球</small>
+                <small>奖杯已贴在 {formatJournalDate(milestone.dateKey)}</small>
+              </span>
+            </section>
+          )}
+          <section className="journal-legend" aria-label="任务分类贴纸图例">
+            {categories.map((category) => (
+              <span key={category.id}>
+                <img src={journalBallAssets[category.id]} alt="" />
+                {category.name}
+              </span>
+            ))}
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
 function WeeklyHighlights({ categoryStats }) {

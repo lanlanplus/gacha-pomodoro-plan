@@ -4,21 +4,23 @@ import { compileFunction } from "node:vm";
 import * as timer from "./focusSession.js";
 import { settleCompletedTask } from "./subtasks.js";
 import { getIsoWeek } from "./weeklySummary.js";
+import { mergeCompletionHistory } from "./monthlyJournal.js";
 const app = readFileSync(new URL("./App.jsx", import.meta.url), "utf8");
 
 export function appHarness() {
   const disk = new Map();
   const task = { id: "a", name: "读书", category: "study", kind: "task" };
   const context = {
-    ...timer, settleCompletedTask, getIsoWeek,
+    ...timer, settleCompletedTask, getIsoWeek, mergeCompletionHistory,
     state: { tasks: [task], completed: [], current: task },
     focusSessionRef: { current: null }, restoredFocusOwnerRef: { current: "test" },
     wakeLockControllerRef: { current: null }, intervalRef: { current: null }, hasDistractedRef: { current: false },
     timerMinutes: 25, initialTimerMinutes: 25, session: null,
     window: { clearInterval() {} }, confirm: () => true,
     localStorage: { getItem: (key) => disk.get(key) ?? null, setItem: (key, value) => disk.set(key, value), removeItem: (key) => disk.delete(key) },
-    logs: [], notice: "", playSound() {},
+    logs: [], completionHistory: [], notice: "", playSound() {},
     setState: (update) => { context.state = update(context.state); },
+    setCompletionHistory: (update) => { context.completionHistory = update(context.completionHistory); },
     writeCompletionLog: (entry) => context.logs.push(entry),
     setNotice: (notice) => { context.notice = notice; },
   };

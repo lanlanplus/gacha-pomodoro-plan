@@ -12,6 +12,8 @@ test("真实完成处理函数：延迟点击仍向本地与日志写入相同�
   assert.equal(c.state.completed[0].minutes, 25);
   assert.equal(c.logs[0].completedAt, c.state.completed[0].completedAt);
   assert.equal(c.logs[0].minutes, 25);
+  assert.equal(c.completionHistory[0].completedAt, c.state.completed[0].completedAt);
+  assert.equal(c.completionHistory[0].category, "study");
   assert.equal(c.focusSessionRef.current, null);
   assert.equal(c.localStorage.getItem(timer.focusSessionKey("test")), null);
 });
