@@ -2436,20 +2436,97 @@ main {
 }
 
 .progress-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.weekly-progress-dashboard {
+  display: grid;
+  width: min(920px, 100%);
+  gap: 14px;
+}
+
+.weekly-progress-overview {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 64px);
+  padding: clamp(24px, 4vw, 38px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 253, 248, 0.84);
+  box-shadow: var(--shadow);
+}
+
+.weekly-progress-ring {
+  display: grid;
+  place-items: center;
+  width: 168px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    var(--red) 0 var(--completion),
+    var(--color-border) var(--completion) 360deg
+  );
+}
+
+.weekly-progress-ring::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--panel);
+}
+
+.weekly-progress-ring strong {
+  z-index: 1;
+  grid-area: 1 / 1;
+  font-size: 38px;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-progress-totals {
+  display: grid;
   gap: 8px;
 }
 
+.weekly-progress-totals p,
+.weekly-progress-totals span {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 800;
+}
+
+.weekly-progress-totals p strong,
+.weekly-progress-totals span strong {
+  color: var(--red);
+  font-size: 1.35em;
+}
+
+.weekly-progress-totals span {
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.weekly-progress-totals small {
+  margin-top: 8px;
+  color: #39736e;
+  font-size: 14px;
+}
+
 .progress-card {
-  padding: 12px 16px;
+  padding: 14px 18px;
   box-shadow: none;
 }
 
 .progress-top {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(100px, auto);
+  align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .progress-name {
@@ -2457,6 +2534,22 @@ main {
   align-items: center;
   gap: 8px;
   font-weight: 900;
+}
+
+.progress-name img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.progress-top > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-top > span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
 }
 
 .swatch {
@@ -2477,8 +2570,94 @@ main {
 }
 
 .category-done-text {
-  color: var(--color-accent);
-  font-weight: 500;
+  color: var(--color-accent) !important;
+  font-weight: 800;
+}
+
+.weekly-progress-continue {
+  justify-self: center;
+  width: min(300px, 100%);
+  margin-top: 4px;
+}
+
+.summary-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: min(540px, 100%);
+  margin: -2px 0 20px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.summary-mode-tabs button {
+  min-height: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.summary-mode-tabs button.active {
+  border: 1px solid rgba(239, 91, 83, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--red);
+  box-shadow: 0 6px 18px rgba(45, 40, 31, 0.06);
+}
+
+.weekly-review-current {
+  width: min(920px, 100%);
+}
+
+.weekly-review-period {
+  margin: -2px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.weekly-review-card {
+  display: grid;
+  gap: 18px;
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(61, 191, 160, 0.11), transparent 30%),
+    linear-gradient(135deg, rgba(239, 91, 83, 0.08), rgba(255, 253, 248, 0.9));
+  box-shadow: var(--shadow);
+}
+
+.weekly-review-card > p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--red);
+  font-size: clamp(20px, 3vw, 30px);
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.weekly-review-focus {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.weekly-review-focus span {
+  font-weight: 800;
+}
+
+.weekly-review-focus strong {
+  color: var(--red);
+  font-size: clamp(24px, 4vw, 38px);
+}
+
+.weekly-review-card > small {
+  justify-self: end;
+  color: #39736e;
+  font-size: 14px;
 }
 
 .summary-strip {
@@ -2670,6 +2849,16 @@ main {
   gap: 10px;
 }
 
+.weekly-review-current .weekly-highlights {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.weekly-review-current .weekly-highlight {
+  min-height: 112px;
+  align-items: flex-start;
+  flex-direction: column;
+}
+
 .weekly-highlight {
   display: flex;
   align-items: center;
@@ -2702,6 +2891,339 @@ main {
 
 .weekly-highlight p {
   font-size: 16px;
+}
+
+.summary-sidebar-nav,
+.summary-sidebar-note {
+  display: none;
+}
+
+.summary-review-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 24px;
+}
+
+.summary-review-toolbar .summary-mode-tabs {
+  flex: 0 1 540px;
+  margin: 0;
+}
+
+.weekly-review-switcher {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: #38343a;
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-review-switcher button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0 0 3px;
+  border: 1px solid #ebe7e1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.86);
+  color: #343137;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(70, 56, 48, 0.05);
+}
+
+.weekly-review-switcher button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.weekly-review-copy {
+  min-width: 0;
+}
+
+.weekly-review-copy > p {
+  max-width: 720px;
+  margin: 0 0 24px;
+  color: var(--red);
+  font-size: clamp(22px, 2.5vw, 32px);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.weekly-review-mascot {
+  display: block;
+  width: 128px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 18px rgba(216, 116, 93, 0.15));
+  transform: rotate(-2deg);
+}
+
+.weekly-highlight-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.weekly-highlight-copy > strong {
+  font-size: 16px;
+}
+
+.weekly-highlight-copy p {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.weekly-highlight-copy b {
+  color: var(--red);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 901px) {
+  .app-shell.summary-view {
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 73% 40%, rgba(255, 226, 219, 0.2), transparent 34%),
+      #fffdfa;
+  }
+
+  .summary-view .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    min-height: 100vh;
+    padding: 24px 30px;
+    border-right: 1px solid #ece8e2;
+    background: rgba(255, 254, 251, 0.94);
+    box-shadow: none;
+  }
+
+  .summary-view .brand {
+    align-items: flex-start;
+  }
+
+  .summary-view .brand-title {
+    gap: 12px;
+  }
+
+  .summary-view .brand-mark {
+    width: 48px;
+    height: 48px;
+    box-shadow: none;
+  }
+
+  .summary-view .header-actions {
+    position: fixed;
+    top: 24px;
+    right: 34px;
+    z-index: 30;
+  }
+
+  .summary-view .week-meter {
+    display: none;
+  }
+
+  .summary-sidebar-nav {
+    display: grid;
+    gap: 4px;
+    margin-top: 18px;
+  }
+
+  .summary-sidebar-nav button {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #3e3b40;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .summary-sidebar-nav button:hover,
+  .summary-sidebar-nav button.active {
+    background: #fff3f0;
+    color: #ef5b53;
+  }
+
+  .summary-sidebar-nav button span {
+    font-size: 24px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  .summary-sidebar-note {
+    display: grid;
+    align-content: end;
+    justify-items: start;
+    flex: 1;
+    min-height: 260px;
+    color: #b88478;
+  }
+
+  .summary-sidebar-note p {
+    margin: 0 0 18px;
+    font-size: 14px;
+    line-height: 1.8;
+    transform: rotate(-5deg);
+  }
+
+  .summary-sidebar-sketch {
+    width: 128px;
+    height: 150px;
+    object-fit: contain;
+    opacity: 0.22;
+    filter: sepia(0.3) saturate(0.8);
+  }
+
+  .summary-view main {
+    padding: 80px clamp(46px, 6vw, 104px) 120px;
+  }
+
+  .summary-view #summary {
+    width: min(1160px, 100%);
+    margin: 0 auto;
+  }
+
+  .summary-view #summary > .section-head {
+    margin-bottom: 20px;
+  }
+
+  .summary-view #summary > .section-head h2 {
+    font-size: clamp(42px, 4vw, 56px);
+    letter-spacing: -0.04em;
+  }
+
+  .summary-view #summary > .section-head .eyebrow {
+    color: var(--red);
+    font-weight: 900;
+  }
+
+  .summary-view .summary-mode-tabs {
+    border-color: #e8e4df;
+    background: rgba(255, 255, 255, 0.64);
+  }
+
+  .summary-view .summary-mode-tabs button.active {
+    border-color: rgba(239, 91, 83, 0.3);
+    color: var(--red);
+  }
+
+  .summary-view .weekly-review-current {
+    width: 100%;
+  }
+
+  .summary-view .weekly-review-card {
+    grid-template-columns: 180px minmax(0, 1fr) minmax(220px, 0.34fr);
+    align-items: center;
+    gap: 28px;
+    min-height: 250px;
+    padding: 36px 54px;
+    border-color: #ece8e2;
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at 10% 66%, rgba(255, 205, 188, 0.22), transparent 26%),
+      radial-gradient(circle at 90% 28%, rgba(255, 231, 222, 0.34), transparent 24%),
+      rgba(255, 255, 255, 0.78);
+    box-shadow: 0 14px 38px rgba(90, 72, 61, 0.07);
+  }
+
+  .summary-view .weekly-review-mascot {
+    width: 168px;
+    max-width: 100%;
+    justify-self: center;
+  }
+
+  .summary-view .weekly-review-card > small {
+    justify-self: end;
+    color: #39736e;
+    font-size: 17px;
+    font-weight: 650;
+    line-height: 1.7;
+    transform: rotate(-5deg);
+  }
+
+  .summary-view .weekly-review-focus {
+    gap: 10px;
+  }
+
+  .summary-view .weekly-review-focus > span:first-child {
+    margin-right: 4px;
+    font-size: 17px;
+  }
+
+  .summary-view .weekly-review-focus strong {
+    color: var(--red);
+    font-size: 34px;
+  }
+
+  .summary-view .weekly-review-focus span:not(:first-child) {
+    color: #37343a;
+    font-size: 15px;
+  }
+
+  .summary-view .summary-categories {
+    margin-top: 30px;
+    padding: 0;
+  }
+
+  .summary-view .summary-categories .section-head {
+    margin-bottom: 14px;
+  }
+
+  .summary-view .summary-categories h3 {
+    font-size: 24px;
+  }
+
+  .summary-view .weekly-highlights {
+    gap: 16px;
+  }
+
+  .summary-view .weekly-review-current .weekly-highlight {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    align-items: center;
+    min-height: 142px;
+    padding: 22px 26px;
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(90, 72, 61, 0.05);
+  }
+
+  .summary-view .weekly-highlight[data-type="completion-rate"] {
+    border-color: rgba(245, 196, 69, 0.28);
+    background: rgba(255, 249, 230, 0.78);
+  }
+
+  .summary-view .weekly-highlight[data-type="most-completed"] {
+    border-color: rgba(239, 130, 150, 0.24);
+    background: rgba(255, 241, 243, 0.78);
+  }
+
+  .summary-view .weekly-highlight[data-type="week-comparison"] {
+    border-color: rgba(61, 191, 160, 0.24);
+    background: rgba(238, 250, 247, 0.82);
+  }
+
+  .summary-view .weekly-highlight-mark {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0 3px, transparent 3px 7px), #f6b8c7;
+    font-size: 29px;
+  }
 }
 
 .weekly-highlight p span {
@@ -3631,6 +4153,20 @@ main {
   .machine-layout.is-current {
     margin-top: 18px;
   }
+
+  .summary-review-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .summary-review-toolbar .summary-mode-tabs {
+    flex-basis: auto;
+  }
+
+  .weekly-review-switcher {
+    justify-content: center;
+  }
 }
 
 @media (max-width: 560px) {
@@ -3650,6 +4186,123 @@ main {
   .stage-copy h2,
   .section-head h2 {
     font-size: 34px;
+  }
+
+  .weekly-progress-overview {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 16px;
+  }
+
+  .weekly-progress-ring {
+    width: 108px;
+  }
+
+  .weekly-progress-ring strong {
+    font-size: 27px;
+  }
+
+  .weekly-progress-totals p {
+    font-size: 18px;
+  }
+
+  .weekly-progress-totals span {
+    font-size: 14px;
+  }
+
+  .weekly-progress-totals small {
+    font-size: 12px;
+  }
+
+  .progress-card {
+    padding: 12px 14px;
+  }
+
+  .progress-top {
+    grid-template-columns: minmax(88px, 1fr) auto auto;
+    gap: 8px;
+  }
+
+  .progress-name {
+    gap: 6px;
+  }
+
+  .progress-name img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .progress-top > span:last-child {
+    font-size: 11px;
+  }
+
+  .summary-mode-tabs {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .summary-mode-tabs button {
+    min-height: 44px;
+    padding: 0 6px;
+    font-size: 13px;
+  }
+
+  .weekly-review-card {
+    grid-template-columns: minmax(104px, 0.72fr) minmax(0, 1.5fr);
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 8px;
+    padding: 20px 16px;
+  }
+
+  .weekly-review-copy {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .weekly-review-copy > p {
+    margin-bottom: 14px;
+    font-size: clamp(18px, 5.4vw, 22px);
+    line-height: 1.42;
+  }
+
+  .weekly-review-mascot {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: center;
+    width: min(122px, 100%);
+  }
+
+  .weekly-review-focus {
+    flex-wrap: wrap;
+    gap: 4px 7px;
+    line-height: 1.2;
+  }
+
+  .weekly-review-focus strong {
+    font-size: 25px;
+  }
+
+  .weekly-review-card > small {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    max-width: 210px;
+    color: #39736e;
+    font-size: 11px;
+    line-height: 1.55;
+    text-align: left;
+  }
+
+  .weekly-review-current .weekly-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-review-current .weekly-highlight {
+    min-height: 72px;
+    align-items: center;
+    flex-direction: row;
   }
 
   .stage-copy {

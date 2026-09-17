@@ -15,11 +15,9 @@ import {
 } from "./taskHistory.js";
 import { runtimeConfig } from "./runtimeConfig.js";
 import {
-  activeCategoryStats,
   applyWeeklySnapshots,
   buildCategoryStats,
   buildFocusStory,
-  buildWeeklyHighlights,
   buildWeeklyHistory,
   buildWeeklyMessage,
   getIsoWeek,
@@ -265,7 +263,7 @@ export default function App() {
   const navItems = [
     ["machine", "◎", "摇蛋机"],
     ["add", "＋", "添加任务"],
-    ["progress", "▦", "进度"],
+    ["progress", "▦", "本周进度"],
     ["summary", "◷", "周总结"],
   ];
   const [view, setView] = useState("machine");
@@ -666,12 +664,14 @@ export default function App() {
     () => overlayCurrentWeekState(weeklyHistory, state.completed, state.weekStartDate),
     [weeklyHistory, state.completed, state.weekStartDate],
   );
-  const preciseWeeks = weeklyHistory.filter((week) => week.precise);
-  const activeWeekCount = preciseWeeks.length;
-  const trophyCount = preciseWeeks.filter((week) => week.best).length;
   const selectedHistoryWeek = displayedWeeklyHistory.find(
     (week) => week.key === selectedHistoryWeekKey,
   );
+  const previousReviewWeek = displayedWeeklyHistory.find(
+    (week) => week.key !== currentWeekKey,
+  );
+  const summaryHours = Math.floor(summaryTotal / 60);
+  const summaryMinutes = summaryTotal % 60;
   const completedToday = useMemo(
     () =>
       currentWeekCompletions.filter((item) => {
@@ -1173,7 +1173,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell ${view === "machine" && !showCurrentPanel ? "home-scene" : ""}`}>
+    <div className={`app-shell ${view === "machine" && !showCurrentPanel ? "home-scene" : ""} ${view === "summary" ? "summary-view" : ""}`}>
       {view === "machine" && !showCurrentPanel && (
         <picture className="home-background" aria-hidden="true">
           <source media="(max-width: 900px)" srcSet="/images/bg/background-mobile.png" />
@@ -1219,6 +1219,31 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {view === "summary" && (
+          <nav className="summary-sidebar-nav" aria-label="周总结快捷导航">
+            <button type="button" onClick={() => setView("machine")}><span aria-hidden="true">◎</span>摇蛋机</button>
+            <button type="button" onClick={() => setView("add")}><span aria-hidden="true">＋</span>添加任务</button>
+            <button type="button" onClick={() => setView("progress")}><span aria-hidden="true">▥</span>本周进度</button>
+            <button
+              className={summaryMode === "journal" ? "active" : ""}
+              type="button"
+              onClick={() => {
+                const today = new Date();
+                setJournalMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
+                setSelectedJournalDate(todayKey(today));
+                setSummaryMode("journal");
+              }}
+            ><span aria-hidden="true">□</span>手帐月历</button>
+          </nav>
+        )}
+
+        {view === "summary" && (
+          <div className="summary-sidebar-note" aria-hidden="true">
+            <p>把想做的事<br />变成一颗颗小小的球<br />慢慢完成吧！</p>
+            <img className="summary-sidebar-sketch" src="/assets/gacha-machine.png" alt="" />
+          </div>
+        )}
 
         <div className="week-meter">
           <div className="meter-label">
@@ -1657,83 +1682,103 @@ export default function App() {
 
         <section id="progress" className={`view ${view === "progress" ? "active" : ""}`} aria-labelledby="progressTitle">
           <div className="section-head">
-            <p className="eyebrow">BALANCE</p>
-            <h2 id="progressTitle">分类进度</h2>
+            <p className="eyebrow">WEEKLY PROGRESS</p>
+            <h2 id="progressTitle">本周进度</h2>
           </div>
-          <CategoryProgress tasks={state.tasks} completed={currentWeekCompletions} />
+          <WeeklyProgress
+            tasks={state.tasks}
+            completed={currentWeekCompletions}
+            percent={weekStats.percent}
+            done={weekStats.done}
+            total={weekStats.total}
+            onContinue={() => setView("machine")}
+          />
         </section>
 
         <section id="summary" className={`view ${view === "summary" ? "active" : ""}`} aria-labelledby="summaryTitle">
           <div className="section-head">
-            <p className="eyebrow">
-              {summaryMode === "current"
-                ? "WEEKLY REVIEW"
-                : summaryMode === "journal"
-                  ? "MONTHLY JOURNAL"
-                  : "WEEKLY HISTORY"}
-            </p>
-            <h2 id="summaryTitle">
-              {summaryMode === "current"
-                ? "周总结"
-                : summaryMode === "journal"
-                  ? "手帐月历"
-                  : "历史周记录"}
-            </h2>
+            <p className="eyebrow">WEEKLY REVIEW</p>
+            <h2 id="summaryTitle">周总结</h2>
+          </div>
+
+          <div className="summary-review-toolbar">
+            <div className="summary-mode-tabs" role="tablist" aria-label="周总结视图">
+              <button
+                className={summaryMode === "current" ? "active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={summaryMode === "current"}
+                onClick={() => setSummaryMode("current")}
+              >本周总结</button>
+              <button
+                className={summaryMode === "journal" ? "active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={summaryMode === "journal"}
+                onClick={() => {
+                  const today = new Date();
+                  setJournalMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
+                  setSelectedJournalDate(todayKey(today));
+                  setSummaryMode("journal");
+                }}
+              >手帐月历</button>
+              <button
+                className={["history", "detail"].includes(summaryMode) ? "active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={["history", "detail"].includes(summaryMode)}
+                onClick={() => setSummaryMode("history")}
+              >历史周</button>
+            </div>
+
+            {summaryMode === "current" && (
+              <div className="weekly-review-switcher" aria-label="切换总结周">
+                <button
+                  type="button"
+                  aria-label="查看上一周"
+                  disabled={!previousReviewWeek}
+                  onClick={() => {
+                    if (!previousReviewWeek) return;
+                    setSelectedHistoryWeekKey(previousReviewWeek.key);
+                    setSummaryMode("detail");
+                  }}
+                >‹</button>
+                <span>{formatWeekRange(currentWeekCompletionData.currentWeek.start, currentWeekCompletionData.currentWeek.end)}</span>
+                <button type="button" aria-label="下一周" disabled>›</button>
+              </div>
+            )}
           </div>
 
           {summaryMode === "current" && (
-            <>
-              <div className="summary-toolbar">
-                <span className="week-tag">第 {activeWeekCount} 周</span>
-                <div className="summary-toolbar-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const today = new Date();
-                      setJournalMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
-                      setSelectedJournalDate(todayKey(today));
-                      setSummaryMode("journal");
-                    }}
-                  >
-                    手帐月历 ›
-                  </button>
-                  <button type="button" onClick={() => setSummaryMode("history")}>查看历史 ›</button>
+            <div className="weekly-review-current">
+              <section className="weekly-review-card">
+                <img
+                  className="weekly-review-mascot"
+                  src="/assets/weekly-review-mascot.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <div className="weekly-review-copy">
+                  <p>{weeklyMessage}</p>
+                  <div className="weekly-review-focus">
+                    <span>本周专注</span>
+                    <strong>{summaryHours}</strong><span>小时</span>
+                    <strong>{summaryMinutes}</strong><span>分钟</span>
+                  </div>
                 </div>
-              </div>
-              <p className="weekly-message">{weeklyMessage}</p>
-
-              <WeeklyOverview
-                percent={weekStats.percent}
-                done={weekStats.done}
-                remaining={state.tasks.length}
-                focusMinutes={summaryTotal}
-              />
-
-              <button
-                className="history-entry-card"
-                type="button"
-                onClick={() => setSummaryMode("history")}
-              >
-                <span>
-                  已陪伴你 {activeWeekCount} 个活跃周
-                  {trophyCount > 0 && ` · ${trophyCount} 座奖杯`}
-                </span>
-                <span aria-hidden="true">›</span>
-              </button>
-
+                <small>认真完成的每一天，都值得被记住。</small>
+              </section>
               <section className="summary-categories" aria-labelledby="summaryCategoriesTitle">
                 <div className="section-head compact">
                   <h3 id="summaryCategoriesTitle">本周亮点</h3>
                 </div>
-                <WeeklyHighlights categoryStats={categoryStats} />
+                <WeeklyHighlights
+                  categoryStats={categoryStats}
+                  currentCompleted={weekStats.done}
+                  previousCompleted={previousReviewWeek?.completed ?? null}
+                />
               </section>
-
-              <div className="section-head compact summary-history-head">
-                <h3>完成记录</h3>
-                <span>{currentWeekCompletions.length} 次完成</span>
-              </div>
-              <SummaryList completed={currentWeekCompletions} />
-            </>
+            </div>
           )}
 
           {summaryMode === "history" && (
@@ -1742,7 +1787,6 @@ export default function App() {
               categories={categories}
               currentWeekKey={currentWeekKey}
               currentPercent={weekStats.percent}
-              onBack={() => setSummaryMode("current")}
               onSelect={(week) => {
                 setSelectedHistoryWeekKey(week.key);
                 setSummaryMode("detail");
@@ -1772,7 +1816,6 @@ export default function App() {
                 setJournalMonth(nextMonth);
                 setSelectedJournalDate(localDateKey(nextMonth));
               }}
-              onBack={() => setSummaryMode("current")}
             />
           )}
         </section>
@@ -2684,25 +2727,49 @@ function TaskQueue({ tasks, completed, onChooseTask, onEditTask }) {
   );
 }
 
-function CategoryProgress({ tasks, completed }) {
-  const activeCategories = activeCategoryStats(buildCategoryStats(categories, tasks, completed));
+function WeeklyProgress({ tasks, completed, percent, done, total, onContinue }) {
+  const categoryProgress = buildCategoryStats(categories, tasks, completed);
+  const remaining = tasks.length;
+  const progressPercent = total ? percent : 0;
 
   return (
-    <div className="progress-grid">
-      {activeCategories.map((category) => {
+    <div className="weekly-progress-dashboard">
+      <section className="weekly-progress-overview">
+        <div
+          className="weekly-progress-ring"
+          style={{ "--completion": `${progressPercent * 3.6}deg` }}
+          role="img"
+          aria-label={`本周完成率 ${progressPercent}%`}
+        >
+          <strong>{progressPercent}%</strong>
+        </div>
+        <div className="weekly-progress-totals">
+          <p>完成 <strong>{done}</strong> / {total} 颗</p>
+          <span>还剩 <strong>{remaining}</strong> 颗任务球</span>
+          <small>{remaining ? `本周还剩 ${remaining} 颗，继续保持` : "本周任务球已经全部完成！"}</small>
+        </div>
+      </section>
+
+      <div className="progress-grid">
+      {categoryProgress.map((category) => {
         const subText =
-          category.remaining === 0
-            ? "全部搞定 🎉"
-            : `${category.done} 完成 / ${category.remaining} 剩余`;
+          category.total === 0
+            ? "还没有任务球"
+            : category.remaining === 0
+              ? "已完成"
+              : `还剩 ${category.remaining} 颗`;
 
         return (
           <article className="progress-card" key={category.id}>
             <div className="progress-top">
               <span className="progress-name">
-                <span className="swatch" style={{ background: category.color }} />
+                <img src={journalBallAssets[category.id]} alt="" />
                 {category.name}
               </span>
-              <strong>{category.percent}%</strong>
+              <strong>{category.done} / {category.total}</strong>
+              <span className={category.remaining === 0 && category.total > 0 ? "category-done-text" : ""}>
+                {subText}
+              </span>
             </div>
             <div className="meter-track">
               <div
@@ -2710,12 +2777,14 @@ function CategoryProgress({ tasks, completed }) {
                 style={{ width: `${category.percent}%`, background: category.color }}
               />
             </div>
-            <p className={`task-meta category-progress-meta ${category.remaining === 0 ? "category-done-text" : ""}`}>
-              {subText}
-            </p>
           </article>
         );
       })}
+      </div>
+
+      <button className="primary-action weekly-progress-continue" type="button" onClick={onContinue}>
+        继续摇蛋 <span aria-hidden="true">›</span>
+      </button>
     </div>
   );
 }
@@ -2771,14 +2840,13 @@ function WeeklyOverview({
   );
 }
 
-function WeeklyHistoryList({ history, categories, currentWeekKey, currentPercent, onBack, onSelect }) {
+function WeeklyHistoryList({ history, categories, currentWeekKey, currentPercent, onSelect }) {
   const preciseWeeks = history.filter((week) => week.precise);
   const oldestPreciseKey = preciseWeeks[preciseWeeks.length - 1]?.key;
   const badgeColors = ["#C85C3A", "#4D7FD6", "#F3B43F", "#D95F92", "#8A6FC2"];
 
   return (
     <div className="weekly-history">
-      <button className="history-back" type="button" onClick={onBack}>‹ 返回周总结</button>
       {!history.length && <p className="weekly-highlights-empty">完成第一颗任务后，这里会出现你的活跃周。</p>}
       {history.map((week) => {
         const category = categories.find(
@@ -3024,7 +3092,6 @@ function MonthlyJournal({
   selectedDate,
   onSelectDate,
   onChangeMonth,
-  onBack,
 }) {
   const cells = monthGrid(month);
   const selectedEntries = completionsByDate[selectedDate] || [];
@@ -3033,7 +3100,6 @@ function MonthlyJournal({
 
   return (
     <div className="monthly-journal">
-      <button className="history-back" type="button" onClick={onBack}>‹ 返回周总结</button>
       <div className="journal-layout">
         <div className="journal-calendar-panel">
           <div className="journal-month-switcher">
@@ -3098,22 +3164,61 @@ function MonthlyJournal({
   );
 }
 
-function WeeklyHighlights({ categoryStats }) {
-  const highlights = buildWeeklyHighlights(categoryStats);
+function WeeklyHighlights({ categoryStats, currentCompleted, previousCompleted }) {
+  const activeCategories = categoryStats.filter((category) => category.total > 0);
+  const completedCategories = activeCategories.filter((category) => category.done > 0);
+  const mostCompleted = [...completedCategories].sort(
+    (a, b) => b.done - a.done || b.percent - a.percent,
+  )[0];
+  const bestCompletion = [...completedCategories].sort(
+    (a, b) => b.percent - a.percent || b.done - a.done,
+  )[0];
+  const completionDelta = previousCompleted === null
+    ? null
+    : currentCompleted - previousCompleted;
+  const highlights = mostCompleted && bestCompletion
+    ? [
+        {
+          type: "most-completed",
+          emoji: "🏆",
+          label: "完成最多",
+          category: mostCompleted,
+          value: `${mostCompleted.done} 颗`,
+        },
+        {
+          type: "completion-rate",
+          emoji: "☆",
+          label: bestCompletion.percent === 100 ? "全部完成" : "完成率最高",
+          category: bestCompletion,
+          value: `${bestCompletion.percent}%`,
+        },
+        {
+          type: "week-comparison",
+          emoji: "↗",
+          label: completionDelta === null
+            ? "本周完成"
+            : completionDelta >= 0 ? "比上周多完成" : "比上周少完成",
+          category: null,
+          value: `${completionDelta === null ? currentCompleted : Math.abs(completionDelta)} 颗`,
+        },
+      ]
+    : [];
 
   return (
     <div className="weekly-highlights">
       {highlights.length ? (
         highlights.map((highlight) => (
-          <div className="weekly-highlight" key={highlight.type}>
+          <div className="weekly-highlight" data-type={highlight.type} key={highlight.type}>
             <div className="weekly-highlight-mark" aria-hidden="true">
-              <span className="swatch" style={{ background: highlight.category.color }} />
               <span>{highlight.emoji}</span>
             </div>
-            <p>
-              <strong>{highlight.category.name}</strong>
-              <span> · {highlight.text}</span>
-            </p>
+            <div className="weekly-highlight-copy">
+              <strong>{highlight.label}</strong>
+              <p>
+                {highlight.category && <span>{highlight.category.name}</span>}
+                <b>{highlight.value}</b>
+              </p>
+            </div>
           </div>
         ))
       ) : (
