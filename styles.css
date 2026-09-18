@@ -2650,8 +2650,10 @@ main {
 }
 
 .weekly-review-focus strong {
-  color: var(--red);
-  font-size: clamp(24px, 4vw, 38px);
+  color: #d99548;
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(22px, 3.2vw, 32px);
+  font-weight: 760;
 }
 
 .weekly-review-card > small {
@@ -2893,9 +2895,15 @@ main {
   font-size: 16px;
 }
 
-.summary-sidebar-nav,
 .summary-sidebar-note {
   display: none;
+}
+
+.summary-page-actions {
+  position: fixed;
+  top: 24px;
+  right: 34px;
+  z-index: 30;
 }
 
 .summary-review-toolbar {
@@ -2948,10 +2956,12 @@ main {
 .weekly-review-copy > p {
   max-width: 720px;
   margin: 0 0 24px;
-  color: var(--red);
-  font-size: clamp(22px, 2.5vw, 32px);
-  font-weight: 900;
-  line-height: 1.4;
+  color: #4f7f79;
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(19px, 2.2vw, 27px);
+  font-weight: 720;
+  letter-spacing: 0.01em;
+  line-height: 1.52;
 }
 
 .weekly-review-mascot {
@@ -3018,49 +3028,8 @@ main {
     box-shadow: none;
   }
 
-  .summary-view .header-actions {
-    position: fixed;
-    top: 24px;
-    right: 34px;
-    z-index: 30;
-  }
-
   .summary-view .week-meter {
     display: none;
-  }
-
-  .summary-sidebar-nav {
-    display: grid;
-    gap: 4px;
-    margin-top: 18px;
-  }
-
-  .summary-sidebar-nav button {
-    display: grid;
-    grid-template-columns: 30px 1fr;
-    align-items: center;
-    gap: 12px;
-    min-height: 52px;
-    padding: 0 8px;
-    border: 0;
-    border-radius: 12px;
-    background: transparent;
-    color: #3e3b40;
-    font-size: 17px;
-    font-weight: 700;
-    text-align: left;
-  }
-
-  .summary-sidebar-nav button:hover,
-  .summary-sidebar-nav button.active {
-    background: #fff3f0;
-    color: #ef5b53;
-  }
-
-  .summary-sidebar-nav button span {
-    font-size: 24px;
-    font-weight: 500;
-    text-align: center;
   }
 
   .summary-sidebar-note {
@@ -3164,8 +3133,8 @@ main {
   }
 
   .summary-view .weekly-review-focus strong {
-    color: var(--red);
-    font-size: 34px;
+    color: #d99548;
+    font-size: 30px;
   }
 
   .summary-view .weekly-review-focus span:not(:first-child) {
@@ -4085,6 +4054,11 @@ main {
 }
 
 @media (max-width: 900px) {
+  .summary-page-actions {
+    top: 14px;
+    right: 14px;
+  }
+
   .app-shell {
     align-content: start;
     grid-template-columns: 1fr;
@@ -4262,8 +4236,9 @@ main {
 
   .weekly-review-copy > p {
     margin-bottom: 14px;
-    font-size: clamp(18px, 5.4vw, 22px);
-    line-height: 1.42;
+    font-size: clamp(16px, 4.7vw, 19px);
+    font-weight: 700;
+    line-height: 1.55;
   }
 
   .weekly-review-mascot {
@@ -4281,7 +4256,7 @@ main {
   }
 
   .weekly-review-focus strong {
-    font-size: 25px;
+    font-size: 22px;
   }
 
   .weekly-review-card > small {

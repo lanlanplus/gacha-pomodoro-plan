@@ -1172,6 +1172,38 @@ export default function App() {
     );
   }
 
+  function renderHeaderActions(className = "header-actions") {
+    return (
+      <div className={className}>
+        <button
+          className="quick-note-entry"
+          type="button"
+          aria-label="随手记一笔"
+          onClick={() => setShowQuickCapture(true)}
+        >
+          ✎
+        </button>
+        <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
+        {!session?.user?.email && (
+          <GuestAuthEntry>
+            <AuthPanel
+              session={session}
+              email={authEmail}
+              password={authPassword}
+              mode={authMode}
+              loading={authLoading}
+              submitting={authSubmitting}
+              onEmailChange={setAuthEmail}
+              onPasswordChange={setAuthPassword}
+              onModeChange={setAuthMode}
+              onSubmit={submitAuth}
+            />
+          </GuestAuthEntry>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`app-shell ${view === "machine" && !showCurrentPanel ? "home-scene" : ""} ${view === "summary" ? "summary-view" : ""}`}>
       {view === "machine" && !showCurrentPanel && (
@@ -1191,52 +1223,8 @@ export default function App() {
               <p>本周清空所有球</p>
             </div>
           </div>
-          <div className="header-actions">
-            <button
-              className="quick-note-entry"
-              type="button"
-              aria-label="随手记一笔"
-              onClick={() => setShowQuickCapture(true)}
-            >
-              ✎
-            </button>
-            <AccountMenu session={session} remoteReady={remoteReady} onSignOut={signOut} />
-            {!session?.user?.email && (
-              <GuestAuthEntry>
-                <AuthPanel
-                  session={session}
-                  email={authEmail}
-                  password={authPassword}
-                  mode={authMode}
-                  loading={authLoading}
-                  submitting={authSubmitting}
-                  onEmailChange={setAuthEmail}
-                  onPasswordChange={setAuthPassword}
-                  onModeChange={setAuthMode}
-                  onSubmit={submitAuth}
-                />
-              </GuestAuthEntry>
-            )}
-          </div>
+          {view !== "summary" && renderHeaderActions()}
         </div>
-
-        {view === "summary" && (
-          <nav className="summary-sidebar-nav" aria-label="周总结快捷导航">
-            <button type="button" onClick={() => setView("machine")}><span aria-hidden="true">◎</span>摇蛋机</button>
-            <button type="button" onClick={() => setView("add")}><span aria-hidden="true">＋</span>添加任务</button>
-            <button type="button" onClick={() => setView("progress")}><span aria-hidden="true">▥</span>本周进度</button>
-            <button
-              className={summaryMode === "journal" ? "active" : ""}
-              type="button"
-              onClick={() => {
-                const today = new Date();
-                setJournalMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12));
-                setSelectedJournalDate(todayKey(today));
-                setSummaryMode("journal");
-              }}
-            ><span aria-hidden="true">□</span>手帐月历</button>
-          </nav>
-        )}
 
         {view === "summary" && (
           <div className="summary-sidebar-note" aria-hidden="true">
@@ -1258,6 +1246,8 @@ export default function App() {
           </p>
         </div>
       </aside>
+
+      {view === "summary" && renderHeaderActions("header-actions summary-page-actions")}
 
       <main>
         <section id="machine" className={`view ${view === "machine" ? "active" : ""}`} aria-labelledby="machineTitle">
