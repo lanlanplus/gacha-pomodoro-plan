@@ -25,14 +25,16 @@
   --color-text-muted: #AAA09A;
 
   /* 类别色 */
-  --color-cat-work-bg: #DEEEFF;
-  --color-cat-work-text: #1855A3;
-  --color-cat-study-bg: #FEF3D5;
-  --color-cat-study-text: #9A6408;
-  --color-cat-life-bg: #E6F7EE;
-  --color-cat-life-text: #1A7A4A;
-  --color-cat-health-bg: #FFE8E8;
-  --color-cat-health-text: #B03030;
+  --color-cat-work-bg: #eef9ff;
+  --color-cat-work-text: #3d769f;
+  --color-cat-study-bg: #fffbd9;
+  --color-cat-study-text: #b98d29;
+  --color-cat-life-bg: #f4eafa;
+  --color-cat-life-text: #8059a0;
+  --color-cat-health-bg: #e6fcf8;
+  --color-cat-health-text: #40897f;
+  --color-cat-creative-bg: #ffe6f3;
+  --color-cat-creative-text: #a95384;
 
   --bg: var(--color-bg-page);
   --ink: var(--color-text-primary);
@@ -1346,33 +1348,52 @@ main {
 }
 
 .cat-work {
-  background: #DEEEFF;
-  color: #1855A3;
+  background: var(--color-cat-work-bg);
+  color: var(--color-cat-work-text);
 }
 
 .cat-study {
-  background: #FEF3D5;
-  color: #9A6408;
+  background: var(--color-cat-study-bg);
+  color: var(--color-cat-study-text);
 }
 
 .cat-life {
-  background: #E6F7EE;
-  color: #1A7A4A;
+  background: var(--color-cat-life-bg);
+  color: var(--color-cat-life-text);
 }
 
 .cat-health {
-  background: #FFE8E8;
-  color: #B03030;
+  background: var(--color-cat-health-bg);
+  color: var(--color-cat-health-text);
 }
 
 .cat-creative {
-  background: #F3E8FF;
-  color: #6B21A8;
+  background: var(--color-cat-creative-bg);
+  color: var(--color-cat-creative-text);
 }
 
 .cat-tag.selected {
   border-color: currentColor;
   font-weight: 600;
+}
+
+/* Reuse the existing category ball palette, only in the add-task form. */
+#categoryTags .cat-tag {
+  background: color-mix(in srgb, var(--tag-light) 40%, white);
+  color: color-mix(in srgb, var(--tag-dark) 75%, black);
+}
+
+#categoryTags .cat-tag:hover {
+  background: color-mix(in srgb, var(--tag-base) 50%, white);
+}
+
+#categoryTags .cat-tag.selected {
+  background: color-mix(in srgb, var(--tag-light) 65%, white);
+  border-color: var(--tag-dark);
+}
+
+#categoryTags .cat-tag.selected:hover {
+  background: color-mix(in srgb, var(--tag-base) 70%, white);
 }
 
 .task-name-field {

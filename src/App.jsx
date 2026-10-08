@@ -1,6 +1,6 @@
 import { startFocusSession, advanceFocusSession, pauseFocusSession, resumeFocusSession, completionFromFocusSession, readFocusSession, saveFocusSession } from "./focusSession.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import TaskBall from "./TaskBall.jsx";
+import TaskBall, { palettes as categoryPalettes } from "./TaskBall.jsx";
 import {
   buildFocusConfetti,
   createFocusDistractionController,
@@ -51,11 +51,12 @@ import {
 } from "./monthlyJournal.js";
 
 const categories = [
-  { id: "work", name: "工作", color: "#4d7fd6" },
-  { id: "health", name: "健康", color: "#64a84f" },
-  { id: "study", name: "学习", color: "#f3b43f" },
-  { id: "life", name: "生活", color: "#1f9c95" },
-  { id: "creative", name: "创意", color: "#d95f92" },
+  // Keep the shared category color equal to each existing progress-ball palette's base.
+  { id: "work", name: "工作", color: categoryPalettes.work[1] },
+  { id: "health", name: "健康", color: categoryPalettes.health[1] },
+  { id: "study", name: "学习", color: categoryPalettes.study[1] },
+  { id: "life", name: "生活", color: categoryPalettes.life[1] },
+  { id: "creative", name: "创意", color: categoryPalettes.creative[1] },
 ];
 const categoryIdByName = Object.fromEntries(
   categories.map((category) => [category.name, category.id]),
@@ -1478,6 +1479,11 @@ export default function App() {
                       taskCategory === category.id ? "selected" : ""
                     }`}
                     data-value={category.id}
+                    style={{
+                      "--tag-light": categoryPalettes[category.id][0],
+                      "--tag-base": categoryPalettes[category.id][1],
+                      "--tag-dark": categoryPalettes[category.id][3],
+                    }}
                     onClick={() => setTaskCategory(category.id)}
                   >
                     {category.name}
