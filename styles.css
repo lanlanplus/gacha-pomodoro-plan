@@ -4530,3 +4530,86 @@ main {
 @media (max-width: 560px) {
   .home-decor-heart-1 { --size: 52px; }
 }
+
+/* Layered 3D render sprites: retain the original machine geometry and animations. */
+.gacha-render .turn-knob {
+  filter: drop-shadow(0 4px 3px rgba(42, 101, 87, 0.18));
+}
+/* Clip moving balls and their shadows to the rendered glass interior, not a rounded box. */
+.gacha-render .machine-ball-window {
+  border-radius: 0;
+  -webkit-mask: url("/assets/gacha-3d/chamber-mask.svg") center / 100% 100% no-repeat;
+  mask: url("/assets/gacha-3d/chamber-mask.svg") center / 100% 100% no-repeat;
+}
+
+/* Shared resin sphere: colored volume, a compact reflection, and no drawn outline. */
+.task-ball-render {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.task-ball-surface {
+  position: absolute;
+  inset: 6.5%;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 12% 9% at 31% 23%, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.42) 45%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(circle at 34% 28%, var(--sphere-light) 0%, var(--sphere-base) 34%, var(--sphere-shade) 72%, var(--sphere-dark) 100%);
+  box-shadow:
+    inset 1px 1px 2px rgba(255, 255, 255, 0.35),
+    inset -2px -4px 5px rgba(39, 61, 70, 0.12);
+}
+.task-ball-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 44% 16% at 55% 90%, rgba(255, 245, 217, 0.15), transparent 100%);
+}
+.resin-ball-details { position: absolute; inset: 0; }
+.task-ball-dimple {
+  position: absolute;
+  width: 13%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 65% 75%, var(--sphere-base), var(--sphere-shade) 90%);
+  box-shadow: inset 1px 1px 2px rgba(40, 63, 77, 0.12), 0 1px 1px rgba(255, 255, 255, 0.24);
+}
+.dimple-one { left: 66%; top: 43%; }
+.dimple-two { left: 23%; top: 65%; }
+.dimple-three { left: 66%; top: 76%; }
+.gacha-render .mini-ball {
+  position: absolute;
+  filter: drop-shadow(2px 4px 3px rgba(39, 74, 66, 0.24));
+  transform: none;
+}
+.gacha-render .mini-ball .resin-ball-details { transform: rotate(var(--base-rotate)); }
+.gacha-render.turning .mini-ball { animation-name: resin-ball-tumble; }
+.gacha-render.turning .mini-ball .resin-ball-details {
+  animation: resin-ball-spin 0.62s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.055s);
+}
+@keyframes resin-ball-tumble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(16px, -12px); }
+  50% { transform: translate(-14px, 10px); }
+  75% { transform: translate(10px, 14px); }
+}
+@keyframes resin-ball-spin {
+  from { transform: rotate(var(--base-rotate)); }
+  to { transform: rotate(calc(var(--base-rotate) + 360deg)); }
+}
+.home-floor-ball .task-ball-render { z-index: 1; }
+.home-floor-ball .resin-ball-details { transform: rotate(var(--ball-tilt, 0deg)); }
+.home-floor-ball::before {
+  left: 8%; width: 88%; bottom: 0; height: 14%;
+  background: radial-gradient(ellipse, rgba(137, 98, 63, 0.28) 0%, rgba(177, 123, 73, 0.13) 45%, transparent 72%);
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gacha-render.turning .mini-ball,
+  .gacha-render.turning .mini-ball .resin-ball-details { animation: none; }
+}

@@ -1,5 +1,6 @@
 import { startFocusSession, advanceFocusSession, pauseFocusSession, resumeFocusSession, completionFromFocusSession, readFocusSession, saveFocusSession } from "./focusSession.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import TaskBall from "./TaskBall.jsx";
 import {
   buildFocusConfetti,
   createFocusDistractionController,
@@ -1282,13 +1283,13 @@ export default function App() {
                     ))}
                     {["yellow", "blue", "pink", "purple", "mint", "pink"].map((color, index) => (
                       <span key={`${color}-${index}`} className={`home-floor-ball home-floor-ball-${index}`}>
-                        <img src={`/assets/task-ball-${color}.png`} alt="" />
+                        <TaskBall color={color} />
                       </span>
                     ))}
                   </div>
                 <div className="gacha-wrap">
                   <div
-                    className={`gacha-machine ${drawInProgress ? "has-turned" : ""} ${
+                    className={`gacha-machine gacha-render ${drawInProgress ? "has-turned" : ""} ${
                       drawPhase === "turning" ? "turning" : ""
                     }`}
                   >
@@ -1296,11 +1297,10 @@ export default function App() {
                       {state.tasks.slice(0, 18).map((task, index) => {
                         const layout = ballLayouts[index % ballLayouts.length];
                         return (
-                          <img
+                          <TaskBall
                             key={task.id}
                             className="mini-ball"
-                            src={ballAssets[task.category] || ballAssets.work}
-                            alt=""
+                            category={task.category}
                             style={{
                               left: `${layout.left}%`,
                               top: `${layout.top}%`,
@@ -1312,7 +1312,7 @@ export default function App() {
                         );
                       })}
                     </div>
-                    <img className="machine-art" src="/assets/gacha-machine.png" alt="薄荷绿色透明扭蛋机" />
+                    <img className="machine-art" src="/assets/gacha-3d/machine.png" alt="薄荷绿色透明扭蛋机" />
                     <img className="machine-sticker" src="/assets/gacha-sticker.png" alt="" aria-hidden="true" />
                     <button
                       className="turn-knob"
@@ -1321,7 +1321,7 @@ export default function App() {
                       disabled={drawInProgress}
                       aria-label="扭一下抽取任务球"
                     >
-                      <img src="/assets/gacha-knob.png" alt="" />
+                      <img src="/assets/gacha-3d/knob.png" alt="" />
                     </button>
                     {(drawPhase === "dropping" || drawPhase === "prize") && pendingPrize && (
                       <button
@@ -1331,14 +1331,7 @@ export default function App() {
                         disabled={drawPhase !== "prize"}
                         aria-label={drawPhase === "prize" ? "点击任务球查看任务" : "任务球正在掉落"}
                       >
-                        <img
-                          src={
-                            pendingPrize.kind === "task"
-                              ? ballAssets[pendingPrize.category] || ballAssets.work
-                              : ballAssets.study
-                          }
-                          alt=""
-                        />
+                        <TaskBall category={pendingPrize.kind === "task" ? pendingPrize.category : "study"} />
                       </button>
                     )}
                   </div>
