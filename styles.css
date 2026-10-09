@@ -4205,6 +4205,8 @@ main {
   .app-shell {
     align-content: start;
     grid-template-columns: 1fr;
+    min-height: 100dvh;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .sidebar {
@@ -4213,9 +4215,42 @@ main {
     z-index: 5;
     align-self: start;
     gap: 14px;
-    padding: 14px;
+    padding: calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 14px calc(14px + env(safe-area-inset-left));
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    /* A backdrop filter makes fixed descendants use the sidebar as their containing block. */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .sidebar .nav-tabs {
+    position: fixed;
+    top: auto;
+    right: auto;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    left: 50%;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(680px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    min-height: 78px;
+    padding: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.68);
+    border-radius: 999px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.22) 42%, rgba(255, 255, 255, 0.42)),
+      radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.92), transparent 28%),
+      radial-gradient(circle at 88% 72%, rgba(31, 156, 149, 0.18), transparent 34%),
+      rgba(255, 255, 255, 0.34);
+    box-shadow:
+      0 22px 58px rgba(45, 40, 31, 0.2),
+      0 6px 18px rgba(255, 255, 255, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.94),
+      inset 0 -1px 0 rgba(32, 33, 36, 0.08);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    transform: translateX(-50%);
   }
 
   .nav-tab {
@@ -4227,7 +4262,7 @@ main {
   }
 
   main {
-    padding: 16px 16px 28px;
+    padding: 16px calc(16px + env(safe-area-inset-right)) 28px calc(16px + env(safe-area-inset-left));
   }
 
   .machine-layout,

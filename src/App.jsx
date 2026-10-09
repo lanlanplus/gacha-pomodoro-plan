@@ -1236,6 +1236,9 @@ export default function App() {
               type="button"
               onClick={() => {
                 setView(id);
+                if (window.matchMedia("(max-width: 900px)").matches) {
+                  window.scrollTo({ top: 0, behavior: "auto" });
+                }
                 if (id === "summary") setSummaryMode("current");
               }}
             >
