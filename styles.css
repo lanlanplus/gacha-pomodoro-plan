@@ -2924,10 +2924,6 @@ main {
   font-size: 16px;
 }
 
-.summary-sidebar-note {
-  display: none;
-}
-
 .summary-page-actions {
   position: fixed;
   top: 24px;
@@ -3059,30 +3055,6 @@ main {
 
   .summary-view .week-meter {
     display: none;
-  }
-
-  .summary-sidebar-note {
-    display: grid;
-    align-content: end;
-    justify-items: start;
-    flex: 1;
-    min-height: 260px;
-    color: #b88478;
-  }
-
-  .summary-sidebar-note p {
-    margin: 0 0 18px;
-    font-size: 14px;
-    line-height: 1.8;
-    transform: rotate(-5deg);
-  }
-
-  .summary-sidebar-sketch {
-    width: 128px;
-    height: 150px;
-    object-fit: contain;
-    opacity: 0.22;
-    filter: sepia(0.3) saturate(0.8);
   }
 
   .summary-view main {
@@ -4051,6 +4023,148 @@ main {
   .focus-tree img {
     transition-duration: 0.01ms;
   }
+}
+
+/* Shared desktop shell: persistent left navigation and one aligned content rail. */
+@media (min-width: 901px) {
+  .app-shell {
+    grid-template-columns: 232px minmax(0, 1fr);
+    min-height: 100vh;
+    padding-bottom: 0;
+  }
+
+  .sidebar,
+  .summary-view .sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    width: 232px;
+    height: 100vh;
+    min-height: 100vh;
+    gap: 22px;
+    padding: 24px 16px 18px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    background: rgba(255, 253, 248, 0.88);
+    box-shadow: none;
+  }
+
+  .brand,
+  .summary-view .brand {
+    justify-content: flex-start;
+  }
+
+  .brand-title,
+  .summary-view .brand-title {
+    gap: 10px;
+    white-space: nowrap;
+  }
+
+  .brand-mark,
+  .summary-view .brand-mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand h1 { font-size: 20px; white-space: nowrap; }
+  .brand p { font-size: 12px; white-space: nowrap; }
+
+  .nav-tabs {
+    position: static;
+    left: auto;
+    bottom: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    min-height: 0;
+    gap: 7px;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: none;
+  }
+
+  .nav-tabs::before,
+  .nav-tabs::after { display: none; }
+
+  .nav-tab {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 13px;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    text-align: left;
+    text-shadow: none;
+  }
+
+  .nav-tab span:first-child { width: 24px; font-size: 20px; }
+  .nav-tab.active { background: rgba(239, 91, 83, 0.1); color: var(--color-primary); }
+
+  .sidebar-bottom {
+    display: grid;
+    gap: 14px;
+    margin-top: auto;
+  }
+
+  .week-meter,
+  .summary-view .week-meter { display: block; margin-top: 0; padding: 13px; }
+  .sidebar-bottom .header-actions { justify-content: flex-start; padding: 0 4px; }
+
+  main,
+  .summary-view main {
+    width: 100%;
+    max-width: none;
+    padding: 40px clamp(28px, 4vw, 64px) 64px;
+  }
+
+  main > .view {
+    width: min(1160px, 100%);
+    margin: 0 auto;
+  }
+
+  .summary-view #summary { width: 100%; max-width: 1160px; }
+  .summary-view #summary > .section-head h2 { font-size: clamp(38px, 4vw, 52px); }
+  .summary-view .weekly-review-card { padding: 30px clamp(28px, 4vw, 48px); }
+
+  /* Progress and review cards follow the same content rail as the add page. */
+  .weekly-progress-dashboard { width: 100%; }
+  .weekly-progress-overview,
+  .progress-grid,
+  .progress-grid .progress-card { width: 100%; max-width: none; }
+  .summary-view .weekly-review-current,
+  .summary-view .weekly-review-card,
+  .summary-view .summary-categories { width: 100%; max-width: none; }
+
+  #add > .section-head,
+  #add > .task-form,
+  #add > .collapsible-section,
+  #add > .clear-reload-confirm-action { width: 100%; max-width: none; }
+
+  #add > .task-form { padding: 24px; gap: 18px 20px; }
+  #add > .collapsible-section { margin-top: 16px; }
+
+  .machine-layout { width: min(1160px, 100%); }
+  .machine-layout.is-draw { min-height: calc(100vh - 104px); }
+}
+
+@media (min-width: 901px) and (max-width: 1120px) {
+  .app-shell,
+  .app-shell.summary-view { grid-template-columns: 214px minmax(0, 1fr); }
+  .sidebar,
+  .summary-view .sidebar { width: 214px; padding-right: 13px; padding-left: 13px; }
+  main,
+  .summary-view main { padding-right: 28px; padding-left: 28px; }
+  .summary-view .weekly-review-card { grid-template-columns: 128px minmax(0, 1fr); }
+  .summary-view .weekly-review-mascot { width: 120px; }
+  .summary-view .weekly-review-card > small { grid-column: 2; justify-self: start; }
 }
 
 @media (min-width: 641px) {

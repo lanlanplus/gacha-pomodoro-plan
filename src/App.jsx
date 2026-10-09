@@ -1225,31 +1225,42 @@ export default function App() {
               <p>本周清空所有球</p>
             </div>
           </div>
-          {view !== "summary" && renderHeaderActions()}
         </div>
 
-        {view === "summary" && (
-          <div className="summary-sidebar-note" aria-hidden="true">
-            <p>把想做的事<br />变成一颗颗小小的球<br />慢慢完成吧！</p>
-            <img className="summary-sidebar-sketch" src="/assets/gacha-machine.png" alt="" />
-          </div>
-        )}
+        <nav className="nav-tabs" aria-label="页面">
+          {navItems.map(([id, icon, label]) => (
+            <button
+              key={id}
+              data-view={id}
+              className={`nav-tab ${view === id ? "active" : ""}`}
+              type="button"
+              onClick={() => {
+                setView(id);
+                if (id === "summary") setSummaryMode("current");
+              }}
+            >
+              <span aria-hidden="true">{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
 
-        <div className="week-meter">
-          <div className="meter-label">
-            <span>本周完成</span>
-            <strong>{weekStats.percent}%</strong>
+        <div className="sidebar-bottom">
+          <div className="week-meter">
+            <div className="meter-label">
+              <span>本周完成</span>
+              <strong>{weekStats.percent}%</strong>
+            </div>
+            <div className="meter-track">
+              <div className="meter-fill" style={{ width: `${weekStats.percent}%` }} />
+            </div>
+            <p>
+              {weekStats.done} / {weekStats.total} 颗球
+            </p>
           </div>
-          <div className="meter-track">
-            <div className="meter-fill" style={{ width: `${weekStats.percent}%` }} />
-          </div>
-          <p>
-            {weekStats.done} / {weekStats.total} 颗球
-          </p>
+          {renderHeaderActions()}
         </div>
       </aside>
-
-      {view === "summary" && renderHeaderActions("header-actions summary-page-actions")}
 
       <main>
         <section id="machine" className={`view ${view === "machine" ? "active" : ""}`} aria-labelledby="machineTitle">
@@ -1809,24 +1820,6 @@ export default function App() {
           )}
         </section>
       </main>
-
-      <nav className="nav-tabs" aria-label="页面">
-        {navItems.map(([id, icon, label]) => (
-          <button
-            key={id}
-            data-view={id}
-            className={`nav-tab ${view === id ? "active" : ""}`}
-            type="button"
-            onClick={() => {
-              setView(id);
-              if (id === "summary") setSummaryMode("current");
-            }}
-          >
-            <span aria-hidden="true">{icon}</span>
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
 
       {notice && (
         <div className="app-toast" role="status" aria-live="polite">
