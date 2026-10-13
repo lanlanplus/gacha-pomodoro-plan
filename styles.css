@@ -2954,7 +2954,7 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
-.weekly-review-switcher button {
+.weekly-review-switcher > button {
   display: grid;
   place-items: center;
   width: 42px;
@@ -2969,7 +2969,7 @@ main {
   box-shadow: 0 6px 18px rgba(70, 56, 48, 0.05);
 }
 
-.weekly-review-switcher button:disabled {
+.weekly-review-switcher > button:disabled {
   opacity: 0.38;
   cursor: default;
 }
@@ -4023,6 +4023,53 @@ main {
   .focus-tree img {
     transition-duration: 0.01ms;
   }
+}
+
+/* Compact, unified weekly review */
+.summary-view .summary-mode-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(360px, 100%); }
+.weekly-review-switcher { position: relative; gap: 10px; }
+.summary-review-toolbar { justify-content: flex-start; flex-wrap: wrap; gap: 14px 24px; }
+.history-week-picker { position: relative; }
+.history-week-picker-trigger { display: flex !important; align-items: center; gap: 8px; width: auto !important; height: auto !important; padding: 10px 12px !important; border: 0 !important; border-radius: 12px !important; background: rgba(255,255,255,.78) !important; color: #38343a !important; font-size: 15px !important; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.3 !important; white-space: nowrap; box-shadow: none !important; }
+.history-week-menu { position: absolute; z-index: 20; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: min(360px, calc(100vw - 40px)); max-height: min(340px, 55dvh); overflow-y: auto; overflow-x: hidden; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: #fffdf8; box-shadow: 0 14px 32px rgba(70,56,48,.14); }
+.history-week-menu button { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 4px; width: 100%; min-width: 0; height: auto; margin: 0 0 4px; padding: 11px 12px; border: 0; border-radius: 10px; background: transparent; text-align: left; color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; box-shadow: none; }
+.history-week-menu button:last-child { margin-bottom: 0; }
+.history-week-menu button > span { min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.5; }
+.history-week-menu button:hover, .history-week-menu button[aria-selected="true"] { background: #fff1e9; }
+.history-week-menu small { min-width: 0; max-width: 100%; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.history-week-menu p { margin: 8px; color: var(--muted); font-size: 13px; }
+.summary-view .weekly-review-current { max-width: 920px; }
+.summary-view .weekly-review-card { grid-template-columns: 112px minmax(0,1fr); gap: 20px; min-height: 0; padding: 22px 28px; }
+.summary-view .weekly-review-mascot { width: 104px; }
+.summary-view .weekly-review-copy > p { margin: 0 0 10px; font-size: clamp(18px,2vw,23px); }
+.summary-view .weekly-review-focus { flex-wrap: wrap; gap: 4px 9px; }
+.summary-view .weekly-review-focus strong { font-size: 26px; }
+.summary-view .weekly-review-copy > .weekly-review-insight { margin: 10px 0 0; color: #66847c; font-size: 14px; font-family: inherit; font-weight: 600; }
+.weekly-review-missing { margin: 14px 2px; color: var(--muted); font-size: 14px; }
+.weekly-completed-list { margin-top: 18px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.62); }
+.weekly-completed-list h3 { margin: 0 0 8px; font-size: 16px; }
+.weekly-completed-list ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.weekly-completed-list li { display: grid; grid-template-columns: 9px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid rgba(80,70,60,.08); }
+.weekly-completed-list li strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.weekly-completed-list li small { color: var(--muted); }
+.weekly-completed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
+.weekly-completed-toggle { margin-top: 8px; padding: 5px 0; border: 0; background: transparent; color: var(--color-accent); font-weight: 750; }
+.journal-layout { grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr); }
+.journal-layout > .journal-legend { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; }
+.journal-day-detail:has(.journal-empty-day) { padding: 14px 16px; }
+.journal-empty-day { margin: 8px 0 0; }
+@media (max-width: 700px) {
+  .summary-view .summary-mode-tabs { width: 100%; }
+  .summary-review-toolbar { gap: 10px; }
+  .weekly-review-switcher { justify-content: center; }
+  .history-week-menu { left: 50%; }
+  .summary-view .weekly-review-card { grid-template-columns: 76px minmax(0,1fr); gap: 12px; padding: 16px; }
+  .summary-view .weekly-review-mascot { width: 74px; }
+  .summary-view .weekly-review-copy > p { font-size: 16px; }
+  .summary-view .weekly-review-focus { gap: 3px 6px; }
+  .summary-view .weekly-review-focus strong { font-size: 21px; }
+  .journal-layout { grid-template-columns: 1fr; }
+  .journal-layout > .journal-legend { grid-column: 1; }
 }
 
 /* Shared desktop shell: persistent left navigation and one aligned content rail. */

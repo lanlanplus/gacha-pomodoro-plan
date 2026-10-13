@@ -15,7 +15,9 @@ export function normalizeCompletionHistory(items) {
     .map((item) => {
       const completedAt = item.completed_at || item.completedAt;
       if (!localDateKey(completedAt)) return null;
-      const minutes = Number(item.minutes);
+      const minutes = item.minutes === null || item.minutes === undefined || item.minutes === ""
+        ? null
+        : Number(item.minutes);
       return {
         id: item.id || `${completedAt}-${item.task_name || item.name || "task"}`,
         name: item.name || item.task_name || "未命名任务",
